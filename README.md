@@ -1,2 +1,2 @@
 # Mutation-Unit-Testing
-A tool to test the effectiveness of unit tests by injecting mutations into source code
+A tool to evaluate the effectiveness of unit tests by injecting mutations into Python source code
