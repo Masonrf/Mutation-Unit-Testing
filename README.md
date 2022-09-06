@@ -1,5 +1,5 @@
 # Mutation-Unit-Testing
-## A tool to test the effectiveness of unit tests by injecting mutations into source code
+## A tool to test the effectiveness of unit tests by injecting mutations into Python source code
 
 This tool turns Python source code into a parse tree, mutates an operator, generates the mutated version of the source code, runs the unit test on the mutated code, and then records if the unit test detected the mutation.
 
