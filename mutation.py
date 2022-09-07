@@ -1,13 +1,22 @@
 import ast
 from colorama import *
 init()
+from alive_progress import alive_bar
 
 class Mutation:
     def __init__(self, fileName: str):
         self.filename = fileName
         self.srcStr = "pass"
-        self.__loadSource()
-        self.tree = ast.parse(self.srcStr)
+        with alive_bar(2) as bar:
+            bar.title = 'Initializing'
+            print("Loading source from " + self.filename)
+            self.__loadSource()
+            bar()
+
+            print("Parsing source into tree")
+            self.tree = ast.parse(self.srcStr)
+            bar()
+            #analyze tree
         
     # Loads Python source code from file. Returns that source code as a string
     def __loadSource(self):
@@ -47,3 +56,7 @@ class Mutation:
         else:
             print(Back.GREEN + "[Source file " + Style.BRIGHT + self.filename + Style.NORMAL + " as a tree]" + Style.RESET_ALL)
             print(ast.dump(self.tree, indent=2) + "\n")
+    
+    #mutate
+    #"recompile"
+    #execute unit tests & save

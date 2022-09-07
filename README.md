@@ -13,3 +13,5 @@ Mutations consist of arithmetic, assignment, conditional, and relational operato
 [Python Abstract Syntax Tree library](https://docs.python.org/3/library/ast.html)
 
 [Better AST library guide](https://greentreesnakes.readthedocs.io/en/latest/)
+
+[Into to ASTs in Python](https://pybit.es/articles/ast-intro/)
