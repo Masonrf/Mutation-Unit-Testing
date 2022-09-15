@@ -90,6 +90,44 @@ class Mutation:
             print(Fore.WHITE + Back.RED + "[Error]" + Back.RESET + Style.BRIGHT + Fore.RED + " " + str(ex) + Style.RESET_ALL)
             raise
 
+
+
+# Types of mutations to be called with mutation.mutation_types.TYPE
+    class mutation_types(Enum):
+        COMPLEMENT = 1
+        RANDOM = 2
+
+
+
+    # An abstraction to be able to call any type of mutation function from one function call
+    def mutate(self, mutation_type: Literal[1], iterations, numMutations):
+        try:
+            with alive_bar(iterations, title='Mutating') as bar:
+
+                if mutation_type == self.mutation_types.COMPLEMENT.value:
+                    self.__mutateComplement(numMutations)
+
+                elif mutation_type == self.mutation_types.RANDOM.value:
+                    pass
+
+                else:
+                    raise Exception('Unknown mutation type')
+                
+                bar()
+
+        except Exception as ex:
+            print(Fore.WHITE + Back.RED + "[Error]" + Back.RESET + Style.BRIGHT + Fore.RED + " An exception of type " + type(ex).__name__ + " occured when trying to mutate:" + Style.RESET_ALL)
+            print(Fore.WHITE + Back.RED + "[Error]" + Back.RESET + Style.BRIGHT + Fore.RED + " " + str(ex) + Style.RESET_ALL)
+            raise
+    
+    
+
+    def __mutateComplement(self, numMutations):
+        pass
+
+
+
+
     # mutate
     # "recompile"
     # execute unit tests & save
