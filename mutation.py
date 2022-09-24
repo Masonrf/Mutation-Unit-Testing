@@ -4,6 +4,7 @@ from colorama import *
 init()
 from alive_progress import alive_bar
 from enum import Enum
+import copy
 
 class Mutation:
     def __init__(self, fileName: str):
@@ -18,7 +19,6 @@ class Mutation:
             print("Parsing source into tree")
             # It is possible to crash the Python interpreter with a sufficiently large/complex string due to stack depth limitations in Python’s AST compiler.
             self.tree = ast.parse(self.srcStr)
-            self.mutatedTree = self.tree
             bar()
             #analyze tree - look for pieces of code the unit test actually covers
 
@@ -68,19 +68,19 @@ class Mutation:
 
 
     # Converts the parse tree back into code
-    def exportMutatedTreeAsSource(self, destinationFilename):
+    def __exportTreeAsSource(self, tree, destinationFilename):
         try:
             with alive_bar(2, title='Exporting Mutated Source') as bar:
                 print("Converting from tree to source")
-                mutatedSrc = ast.unparse(self.mutatedTree)
+                # Some warnings about the unparse function from the library documentation:
+                # Warning The produced code string will not necessarily be equal to the original code that generated the ast.AST object.
+                # Trying to unparse a highly complex expression would result with RecursionError.
+                src = ast.unparse(tree)
                 bar()
 
                 print("Writing to file " + destinationFilename)
                 with open(destinationFilename, "w") as destFile:
-                    # Some warnings about the unparse function from the library documentation:
-                    # Warning The produced code string will not necessarily be equal to the original code that generated the ast.AST object.
-                    # Trying to unparse a highly complex expression would result with RecursionError.
-                    destFile.write(mutatedSrc)
+                    destFile.write(src)
                 bar()
                 
                 
@@ -92,7 +92,7 @@ class Mutation:
 
 
 
-# Types of mutations to be called with mutation.mutation_types.TYPE
+    # Types of mutations to be called with mutation.mutation_types.TYPE
     class mutation_types(Enum):
         COMPLEMENT = 1
         RANDOM = 2
@@ -103,17 +103,19 @@ class Mutation:
     def mutate(self, mutation_type: Literal[1], iterations, numMutations):
         try:
             with alive_bar(iterations, title='Mutating') as bar:
+                for i in range(iterations):
+                    mutatedTree = copy.deepcopy(self.tree)
 
-                if mutation_type == self.mutation_types.COMPLEMENT.value:
-                    self.__mutateComplement(numMutations)
+                    if mutation_type == self.mutation_types.COMPLEMENT.value:
+                        self.__mutateComplement(mutatedTree, numMutations)
 
-                elif mutation_type == self.mutation_types.RANDOM.value:
-                    pass
+                    elif mutation_type == self.mutation_types.RANDOM.value:
+                        pass
 
-                else:
-                    raise Exception('Unknown mutation type')
-                
-                bar()
+                    else:
+                        raise Exception('Unknown mutation type')
+                    
+                    bar()
 
         except Exception as ex:
             print(Fore.WHITE + Back.RED + "[Error]" + Back.RESET + Style.BRIGHT + Fore.RED + " An exception of type " + type(ex).__name__ + " occured when trying to mutate:" + Style.RESET_ALL)
@@ -122,7 +124,7 @@ class Mutation:
     
     
 
-    def __mutateComplement(self, numMutations):
+    def __mutateComplement(self, mutatedTree, numMutations):
         pass
 
 
