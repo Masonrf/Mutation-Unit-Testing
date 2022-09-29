@@ -26,7 +26,7 @@ class Mutation:
             print("Analyzing tree")
             self.__astNodeTransformerCallbacks_analyze(self.opsAnalysisInfo).visit(self.tree)
             print("Types and number of operators: ", self.opsAnalysisInfo)
-            
+
             # Analyze tree - look for pieces of code the unit test actually covers
             initBar()
 
@@ -144,114 +144,133 @@ class Mutation:
 
     # Node transformer callback functions and info for mutating the AST
     class __astNodeTransformerCallbacks_mutate(ast.NodeTransformer, mutation_types):
-        def __init__(self, operators: dict, mutationType):
+        def __init__(self, operators: dict, mutationType, numRequestedMutations):
             self.operators = operators
             self.mutationType = mutationType
+            self.numRequestedMutations = numRequestedMutations
             self.numMutated = 0
 
+
+
+
+        def shouldMutate(self):
+            if self.numMutated >= self.numRequestedMutations:
+                return False
+            else:
+                return True
+
+
+
+
         def visit_UnaryOp(self, node):
-            try:
-                match self.mutationType:
-                    case self.COMPLEMENT:
-                        match node.op:
-                            case ast.UAdd():
-                                if "USub" in self.operators["unaryOps"]:
-                                    node.op = ast.USub()
+            if self.shouldMutate():
+                try:
+                    match self.mutationType:
+                        case self.COMPLEMENT:
+                            match node.op:
+                                case ast.UAdd():
+                                    if "USub" in self.operators["unaryOps"]:
+                                        node.op = ast.USub()
 
-                            case ast.USub():
-                                if "UAdd" in self.operators["unaryOps"]:
-                                    node.op = ast.UAdd()
-                            
-                            case _:
-                                print("Operator of type ", type(node.op), " does not have a complementary operator.")
+                                case ast.USub():
+                                    if "UAdd" in self.operators["unaryOps"]:
+                                        node.op = ast.UAdd()
+                                
+                                case _:
+                                    print("Operator of type ", type(node.op), " does not have a complementary operator.")
 
-                    case self.RANDOM:
-                        raise Exception('Mutation type not yet implemented')
+                        case self.RANDOM:
+                            raise Exception('Mutation type not yet implemented')
 
-                    case _:
-                        raise Exception('Unknown mutation type')
+                        case _:
+                            raise Exception('Unknown mutation type')
 
-            except Exception:
-                raise
-            
-            self.numMutated += 1
+                except Exception:
+                    raise
+                
+                self.numMutated += 1
+
             return node
 
 
         
         def visit_BinOp(self, node):
-            try:
-                match self.mutationType:
-                    case self.COMPLEMENT:
-                        match node.op:
-                            case ast.Add():
-                                if "Sub" in self.operators["binOps"]:
-                                    node.op = ast.Sub()
+            if self.shouldMutate():
+                try:
+                    match self.mutationType:
+                        case self.COMPLEMENT:
+                            match node.op:
+                                case ast.Add():
+                                    if "Sub" in self.operators["binOps"]:
+                                        node.op = ast.Sub()
 
-                            case ast.Sub():
-                                if "Add" in self.operators["binOps"]:
-                                    node.op = ast.Add()
-                        
-                            case ast.Mult():
-                                if "Div" in self.operators["binOps"]:
-                                    node.op = ast.Div()
-                        
-                            case ast.Div():
-                                if "Mult" in self.operators["binOps"]:
-                                    node.op = ast.Mult()
-                                
-                            case ast.LShift():
-                                if "Rshift" in self.operators["binOps"]:
-                                    node.op = ast.RShift()
-
-                            case ast.RShift():
-                                if "Lshift" in self.operators["binOps"]:
-                                    node.op = ast.LShift()
-
+                                case ast.Sub():
+                                    if "Add" in self.operators["binOps"]:
+                                        node.op = ast.Add()
                             
-                            case _:
-                                print("Operator of type ", type(node.op), " does not have a complementary operator.")
+                                case ast.Mult():
+                                    if "Div" in self.operators["binOps"]:
+                                        node.op = ast.Div()
+                            
+                                case ast.Div():
+                                    if "Mult" in self.operators["binOps"]:
+                                        node.op = ast.Mult()
+                                    
+                                case ast.LShift():
+                                    if "Rshift" in self.operators["binOps"]:
+                                        node.op = ast.RShift()
 
-                    case self.RANDOM:
-                        raise Exception('This mutation type is not yet implemented')
+                                case ast.RShift():
+                                    if "Lshift" in self.operators["binOps"]:
+                                        node.op = ast.LShift()
 
-                    case _:
-                        raise Exception('Unknown mutation type')
+                                
+                                case _:
+                                    print("Operator of type ", type(node.op), " does not have a complementary operator.")
 
+                        case self.RANDOM:
+                            raise Exception('This mutation type is not yet implemented')
+
+                        case _:
+                            raise Exception('Unknown mutation type')
+
+                except Exception:
+                    raise
+                
                 self.numMutated += 1
-                return node
 
-            except Exception:
-                raise
+            return node
 
 
 
         def visit_BoolOp(self, node):
-            try:
-                match self.mutationType:
-                    case self.COMPLEMENT:
-                        match node.op:
-                            case ast.And():
-                                if "Or" in self.operators["boolOps"]:
-                                    node.op = ast.Or()
+            if self.shouldMutate():
+                try:
+                    match self.mutationType:
+                        case self.COMPLEMENT:
+                            match node.op:
+                                case ast.And():
+                                    if "Or" in self.operators["boolOps"]:
+                                        node.op = ast.Or()
 
-                            case ast.Or():
-                                if "And" in self.operators["boolOps"]:
-                                    node.op = ast.And()
-                            
-                            case _:
-                                print("Operator of type ", type(node.op), " does not have a complementary operator.")
+                                case ast.Or():
+                                    if "And" in self.operators["boolOps"]:
+                                        node.op = ast.And()
+                                
+                                case _:
+                                    print("Operator of type ", type(node.op), " does not have a complementary operator.")
 
-                    case self.RANDOM:
-                        raise Exception('Mutation type not yet implemented')
-                    
-                    case _:
-                        raise Exception('Unknown mutation type')
+                        case self.RANDOM:
+                            raise Exception('Mutation type not yet implemented')
+                        
+                        case _:
+                            raise Exception('Unknown mutation type')
 
-            except Exception:
-                raise
-            
-            self.numMutated += 1
+                except Exception:
+                    raise
+                
+                self.numMutated += 1
+
             return node
         
 
@@ -266,8 +285,7 @@ class Mutation:
                 for i in range(iterations):
                     mutatedTree = copy.deepcopy(self.tree)
 
-                    transformer = self.__astNodeTransformerCallbacks_mutate(self.mutation_operators, mutation_type)
-                    mutatedTree = transformer.visit(mutatedTree)
+                    mutatedTree = self.__astNodeTransformerCallbacks_mutate(self.mutation_operators, mutation_type, numMutations).visit(mutatedTree)
                     
                     mutatedTree = ast.fix_missing_locations(mutatedTree)
                     print(ast.unparse(mutatedTree))
