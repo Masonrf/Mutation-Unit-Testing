@@ -150,6 +150,8 @@ class Mutation:
             self.numRequestedMutations = numRequestedMutations
             self.numMutated = 0
 
+            # Initialize a list of operator line and column numbers that can be mutated based on mutationType
+            # random.choices() function may also be helpful
 
 
 
@@ -158,7 +160,6 @@ class Mutation:
                 return False
             else:
                 return True
-
 
 
 
@@ -171,10 +172,12 @@ class Mutation:
                                 case ast.UAdd():
                                     if "USub" in self.operators["unaryOps"]:
                                         node.op = ast.USub()
+                                        self.numMutated += 1
 
                                 case ast.USub():
                                     if "UAdd" in self.operators["unaryOps"]:
                                         node.op = ast.UAdd()
+                                        self.numMutated += 1
                                 
                                 case _:
                                     print("Operator of type ", type(node.op), " does not have a complementary operator.")
@@ -187,8 +190,6 @@ class Mutation:
 
                 except Exception:
                     raise
-                
-                self.numMutated += 1
 
             return node
 
@@ -203,28 +204,33 @@ class Mutation:
                                 case ast.Add():
                                     if "Sub" in self.operators["binOps"]:
                                         node.op = ast.Sub()
+                                        self.numMutated += 1
 
                                 case ast.Sub():
                                     if "Add" in self.operators["binOps"]:
                                         node.op = ast.Add()
+                                        self.numMutated += 1
                             
                                 case ast.Mult():
                                     if "Div" in self.operators["binOps"]:
                                         node.op = ast.Div()
+                                        self.numMutated += 1
                             
                                 case ast.Div():
                                     if "Mult" in self.operators["binOps"]:
                                         node.op = ast.Mult()
+                                        self.numMutated += 1
                                     
                                 case ast.LShift():
                                     if "Rshift" in self.operators["binOps"]:
                                         node.op = ast.RShift()
+                                        self.numMutated += 1
 
                                 case ast.RShift():
                                     if "Lshift" in self.operators["binOps"]:
                                         node.op = ast.LShift()
+                                        self.numMutated += 1
 
-                                
                                 case _:
                                     print("Operator of type ", type(node.op), " does not have a complementary operator.")
 
@@ -236,8 +242,6 @@ class Mutation:
 
                 except Exception:
                     raise
-                
-                self.numMutated += 1
 
             return node
 
@@ -252,10 +256,12 @@ class Mutation:
                                 case ast.And():
                                     if "Or" in self.operators["boolOps"]:
                                         node.op = ast.Or()
+                                        self.numMutated += 1
 
                                 case ast.Or():
                                     if "And" in self.operators["boolOps"]:
                                         node.op = ast.And()
+                                        self.numMutated += 1
                                 
                                 case _:
                                     print("Operator of type ", type(node.op), " does not have a complementary operator.")
@@ -268,8 +274,6 @@ class Mutation:
 
                 except Exception:
                     raise
-                
-                self.numMutated += 1
 
             return node
         
