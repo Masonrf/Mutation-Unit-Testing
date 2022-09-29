@@ -61,7 +61,7 @@ class Mutation:
             self.analysisInfo = analysisInfo
 
         def visit_UnaryOp(self, node):
-            self.analysisInfo["UnaryOps"] += 1
+            self.analysisInfo["unaryOps"] += 1
             self.generic_visit(node)
         
         def visit_BinOp(self, node):
