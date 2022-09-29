@@ -10,7 +10,7 @@ class Mutation:
         self.filename = fileName
         self.srcStr = ""
         print()
-        with alive_bar(2, title='Initializing') as initBar:
+        with alive_bar(3, title='Initializing') as initBar:
             # Load source from file
             print("Loading source from " + self.filename)
             self.__loadSource()
@@ -23,12 +23,12 @@ class Mutation:
             initBar()
 
             # Analyze tree - Count various operator types
+            print("Analyzing tree")
             self.__astNodeTransformerCallbacks_analyze(self.opsAnalysisInfo).visit(self.tree)
-            print("Types and number of operators:")
-            print(self.opsAnalysisInfo)
-
+            print("Types and number of operators: ", self.opsAnalysisInfo)
+            
             # Analyze tree - look for pieces of code the unit test actually covers
-
+            initBar()
 
 
     # Loads Python source code from file. Returns that source code as a string
