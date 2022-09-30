@@ -4,6 +4,7 @@ init()
 from alive_progress import alive_bar
 import copy
 import traceback
+import random
 
 class Mutation:
     def __init__(self, fileName: str):
@@ -163,6 +164,7 @@ class Mutation:
                 for item in range(len(analysisDict[key])):
                     match self.mutationType:
                         case self.COMPLEMENT:
+                            # Check both the valid complementary operator list and the given list of operators that are acceptable to mutate
                             if (analysisDict[key][item][2] in validComplementaryOpsList) and (analysisDict[key][item][2] in self.operators[key]):
                                 self.opsToMutate.append(analysisDict[key][item])
                                 print("Found valid operator: ", analysisDict[key][item])
@@ -178,20 +180,34 @@ class Mutation:
             
             if numRequestedMutations > self.numOps:
                 print(Back.YELLOW + "[WARNING]" + Back.RESET + Style.BRIGHT + Fore.YELLOW + " Number of requested mutations is larger than the number of mutatable operators! This will mutate all operators." + Style.RESET_ALL)
+            
+            # Randomly remove ops from list to get to the number of requested mutations
+            for i in range(self.numOps - numRequestedMutations):
+                self.opsToMutate.pop(random.randrange(len(self.opsToMutate)))
+            
+            print("Operators that will be mutated: ", self.opsToMutate)
+            
+            self.numOps = len(self.opsToMutate)
 
 
-
-        def shouldMutate(self, node):
-            # check if op in list of ops to mutate
+        def shouldMutate(self, lineNum, ColNum, Ops):
+            nodeInfo = (lineNum, ColNum, type(Ops))
+            print(nodeInfo)
             if self.numMutated >= self.numOps:
+                # Something went wrong if this happens...
                 return False
+
+            # check if op in list of ops to mutate
+            elif nodeInfo in self.opsToMutate:
+                return True 
+
             else:
-                return True
+                return False
 
 
 
         def visit_UnaryOp(self, node):
-            if self.shouldMutate(node):
+            if self.shouldMutate(node.lineno, node.col_offset, node.op):
                 try:
                     match self.mutationType:
                         case self.COMPLEMENT:
@@ -220,7 +236,7 @@ class Mutation:
 
         
         def visit_BinOp(self, node):
-            if self.shouldMutate(node):
+            if self.shouldMutate(node.lineno, node.col_offset, node.op):
                 try:
                     match self.mutationType:
                         case self.COMPLEMENT:
@@ -265,7 +281,7 @@ class Mutation:
 
 
         def visit_BoolOp(self, node):
-            if self.shouldMutate(node):
+            if self.shouldMutate(node.lineno, node.col_offset, node.op):
                 try:
                     match self.mutationType:
                         case self.COMPLEMENT:
@@ -307,6 +323,7 @@ class Mutation:
                     
                     mutatedTree = ast.fix_missing_locations(mutatedTree)
                     print(ast.unparse(mutatedTree))
+
 
                     ## run unit test
                     
