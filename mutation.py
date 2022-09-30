@@ -22,12 +22,14 @@ class Mutation:
             self.tree = ast.parse(self.srcStr)
             initBar()
 
-            # Analyze tree - Count various operator types
-            print("Analyzing tree")
-            self.__astNodeTransformerCallbacks_analyze(self.opsAnalysisInfo).visit(self.tree)
-            print("Types and number of operators: ", self.opsAnalysisInfo)
 
             # Analyze tree - look for pieces of code the unit test actually covers
+
+
+            # Analyze tree - Count various operator types in the relevant piece of code
+            print("Analyzing tree")
+            self.__astNodeVisitorCallbacks_analyze(self.analysisInfo).visit(self.tree)
+            print("Types and number of operators: ", self.analysisInfo)           
             initBar()
 
 
@@ -49,31 +51,35 @@ class Mutation:
             raise
 
 
-    opsAnalysisInfo = {
-        "unaryOps": 0,
-        "binOps": 0,
-        "boolOps": 0,
-        "compares": 0
+    # Information obtained from the analysis of the tree
+    analysisInfo = {
+        "unaryOps": [],
+        "binOps": [],
+        "boolOps": [],
+        "compares": []
     }
 
-    class __astNodeTransformerCallbacks_analyze(ast.NodeVisitor):
-        def __init__(self, analysisInfo):
-            self.analysisInfo = analysisInfo
+
+    # Visit each node in the tree to obtain information on what mutatable source is in the tree
+    # The information that is gathered is stored in analysisInfo
+    class __astNodeVisitorCallbacks_analyze(ast.NodeVisitor):
+        def __init__(self, analysis):
+            self.analysis = analysis
 
         def visit_UnaryOp(self, node):
-            self.analysisInfo["unaryOps"] += 1
+            self.analysis["unaryOps"].append((node.lineno, node.col_offset))
             self.generic_visit(node)
         
         def visit_BinOp(self, node):
-            self.analysisInfo["binOps"] += 1
+            self.analysis["binOps"].append((node.lineno, node.col_offset))
             self.generic_visit(node)
         
         def visit_BoolOp(self, node):
-            self.analysisInfo["boolOps"] += 1
+            self.analysis["boolOps"].append((node.lineno, node.col_offset))
             self.generic_visit(node)
         
         def visit_Compare(self, node):
-            self.analysisInfo["compares"] += 1
+            self.analysis["compares"].append((node.lineno, node.col_offset))
             self.generic_visit(node)
     
 
@@ -155,7 +161,7 @@ class Mutation:
 
 
 
-        def shouldMutate(self):
+        def shouldMutate(self, node):
             if self.numMutated >= self.numRequestedMutations:
                 return False
             else:
@@ -164,7 +170,7 @@ class Mutation:
 
 
         def visit_UnaryOp(self, node):
-            if self.shouldMutate():
+            if self.shouldMutate(node):
                 try:
                     match self.mutationType:
                         case self.COMPLEMENT:
@@ -196,7 +202,7 @@ class Mutation:
 
         
         def visit_BinOp(self, node):
-            if self.shouldMutate():
+            if self.shouldMutate(node):
                 try:
                     match self.mutationType:
                         case self.COMPLEMENT:
@@ -248,7 +254,7 @@ class Mutation:
 
 
         def visit_BoolOp(self, node):
-            if self.shouldMutate():
+            if self.shouldMutate(node):
                 try:
                     match self.mutationType:
                         case self.COMPLEMENT:
