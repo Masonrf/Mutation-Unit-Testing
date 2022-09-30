@@ -56,7 +56,7 @@ class Mutation:
         "unaryOps": [],
         "binOps": [],
         "boolOps": [],
-        "compares": []
+        "cmpOps": []
     }
 
 
@@ -79,7 +79,7 @@ class Mutation:
             self.generic_visit(node)
         
         def visit_Compare(self, node):
-            self.analysis["compares"].append((node.lineno, node.col_offset, [type(item) for item in node.ops]))
+            self.analysis["cmpOps"].append((node.lineno, node.col_offset, [type(item) for item in node.ops]))
             self.generic_visit(node)
     
 
@@ -111,7 +111,6 @@ class Mutation:
     # Converts the parse tree back into code
     def __exportTreeAsSource(self, tree, destinationFilename):
         try:
-            print("ahh")
             with alive_bar(2, title='Exporting Mutated Source') as exportBar:
                 print("Converting from tree to source")
                 # Some warnings about the unparse function from the library documentation:
@@ -141,33 +140,49 @@ class Mutation:
 
     # Valid operators that can be used in the mutation
     mutation_operators = {
-        "unaryOps": (type(ast.UAdd), type(ast.USub), type(ast.Not), type(ast.Invert)),
-        "binOps": (type(ast.Add), type(ast.Sub), type(ast.Mult), type(ast.Div), type(ast.FloorDiv), type(ast.Mod), type(ast.Pow), type(ast.LShift), type(ast.RShift), type(ast.BitOr), type(ast.BitXor), type(ast.BitAnd), type(ast.MatMult)),
-        "boolOps": (type(ast.And), type(ast.Or)),
-        "cmpOps": (type(ast.Eq), type(ast.NotEq), type(ast.Lt), type(ast.LtE), type(ast.Gt), type(ast.GtE), type(ast.Is), type(ast.IsNot), type(ast.In), type(ast.NotIn))
+        "unaryOps": (ast.UAdd, ast.USub, ast.Not, ast.Invert),
+        "binOps": (ast.Add, ast.Sub, ast.Mult, ast.Div, ast.FloorDiv, ast.Mod, ast.Pow, ast.LShift, ast.RShift, ast.BitOr, ast.BitXor, ast.BitAnd, ast.MatMult),
+        "boolOps": (ast.And, ast.Or),
+        "cmpOps": (ast.Eq, ast.NotEq, ast.Lt, ast.LtE, ast.Gt, ast.GtE, ast.Is, ast.IsNot, ast.In, ast.NotIn)
     }
 
 
     # Node transformer callback functions and info for mutating the AST
     class __astNodeTransformerCallbacks_mutate(ast.NodeTransformer, mutation_types):
         def __init__(self, operators: dict, mutationType, numRequestedMutations, analysisDict):
+            validComplementaryOpsList = [ast.UAdd, ast.USub, ast.Add, ast.Sub, ast.Mult, ast.Div, ast.LShift, ast.RShift, ast.And, ast.Or]
             self.operators = operators
             self.mutationType = mutationType
             self.numMutated = 0
 
             # Initialize a list of operator line and column numbers that can be mutated based on mutationType
             # random.choices() function may also be helpful
-            self.numOps = 0
-            for key in analysisDict:
-                self.numOps += len(analysisDict[key])
-            print(self.numOps)
+            self.opsToMutate = []
             
-            if self.numOps < numRequestedMutations:
-                print(Back.YELLOW + "[WARNING]" + Back.RESET + Style.BRIGHT + Fore.YELLOW + "Number of requested mutations is larger than the number of mutatable operators! This will mutate all operators." + Style.RESET_ALL)
+            for key in analysisDict:
+                for item in range(len(analysisDict[key])):
+                    match self.mutationType:
+                        case self.COMPLEMENT:
+                            if (analysisDict[key][item][2] in validComplementaryOpsList) and (analysisDict[key][item][2] in self.operators[key]):
+                                self.opsToMutate.append(analysisDict[key][item])
+                                print("Found valid operator: ", analysisDict[key][item])
+
+                        case self.RANDOM:
+                            raise Exception('This mutation type has not been implemented yet!')
+                        
+                        case _:
+                            raise Exception('Unknown mutation type!')
+
+            self.numOps = len(self.opsToMutate)
+            print("Total number of valid operators found: ", self.numOps, "\nNumber of operators that the user requested be mutated: ", numRequestedMutations)
+            
+            if numRequestedMutations > self.numOps:
+                print(Back.YELLOW + "[WARNING]" + Back.RESET + Style.BRIGHT + Fore.YELLOW + " Number of requested mutations is larger than the number of mutatable operators! This will mutate all operators." + Style.RESET_ALL)
 
 
 
         def shouldMutate(self, node):
+            # check if op in list of ops to mutate
             if self.numMutated >= self.numOps:
                 return False
             else:
