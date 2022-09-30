@@ -179,6 +179,7 @@ class Mutation:
             print("Total number of valid operators found: ", self.numOps, "\nNumber of operators that the user requested be mutated: ", numRequestedMutations)
             
             if numRequestedMutations > self.numOps:
+                numRequestedMutations = self.numOps
                 print(Back.YELLOW + "[WARNING]" + Back.RESET + Style.BRIGHT + Fore.YELLOW + " Number of requested mutations is larger than the number of mutatable operators! This will mutate all operators." + Style.RESET_ALL)
             
             # Randomly remove ops from list to get to the number of requested mutations
@@ -192,7 +193,7 @@ class Mutation:
 
         def shouldMutate(self, lineNum, ColNum, Ops):
             nodeInfo = (lineNum, ColNum, type(Ops))
-            print(nodeInfo)
+            #print(nodeInfo)
             if self.numMutated >= self.numOps:
                 # Something went wrong if this happens...
                 return False
@@ -315,6 +316,11 @@ class Mutation:
     # An abstraction to be able to call any type of mutation function from one function call
     def mutate(self, mutation_type, iterations, numMutations):
         try:
+            if iterations < 1:
+                raise Exception('Number of iterations cannot be less than 1!')
+            if numMutations < 1:
+                raise Exception('Number of mutations cannot be less than 1!')
+                
             with alive_bar(iterations, title='Mutating') as mutBar:
                 for i in range(iterations):
                     mutatedTree = copy.deepcopy(self.tree)
