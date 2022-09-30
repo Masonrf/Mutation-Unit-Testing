@@ -67,19 +67,19 @@ class Mutation:
             self.analysis = analysis
 
         def visit_UnaryOp(self, node):
-            self.analysis["unaryOps"].append((node.lineno, node.col_offset))
+            self.analysis["unaryOps"].append((node.lineno, node.col_offset, type(node.op)))
             self.generic_visit(node)
         
         def visit_BinOp(self, node):
-            self.analysis["binOps"].append((node.lineno, node.col_offset))
+            self.analysis["binOps"].append((node.lineno, node.col_offset, type(node.op)))
             self.generic_visit(node)
         
         def visit_BoolOp(self, node):
-            self.analysis["boolOps"].append((node.lineno, node.col_offset))
+            self.analysis["boolOps"].append((node.lineno, node.col_offset, type(node.op)))
             self.generic_visit(node)
         
         def visit_Compare(self, node):
-            self.analysis["compares"].append((node.lineno, node.col_offset))
+            self.analysis["compares"].append((node.lineno, node.col_offset, [type(item) for item in node.ops]))
             self.generic_visit(node)
     
 
@@ -141,28 +141,34 @@ class Mutation:
 
     # Valid operators that can be used in the mutation
     mutation_operators = {
-        "unaryOps": ("UAdd", "USub", "Not", "Invert"),
-        "binOps": ("Add", "Sub", "Mult", "Div", "FloorDiv", "Mod", "Pow", "LShift", "RShift", "BitOr", "BitXor", "BitAnd", "MatMult"),
-        "boolOps": ("And", "Or"),
-        "cmpOps": ("Eq", "NotEq", "Lt", "LtE", "Gt", "GtE", "Is", "IsNot", "In", "NotIn")
+        "unaryOps": (type(ast.UAdd), type(ast.USub), type(ast.Not), type(ast.Invert)),
+        "binOps": (type(ast.Add), type(ast.Sub), type(ast.Mult), type(ast.Div), type(ast.FloorDiv), type(ast.Mod), type(ast.Pow), type(ast.LShift), type(ast.RShift), type(ast.BitOr), type(ast.BitXor), type(ast.BitAnd), type(ast.MatMult)),
+        "boolOps": (type(ast.And), type(ast.Or)),
+        "cmpOps": (type(ast.Eq), type(ast.NotEq), type(ast.Lt), type(ast.LtE), type(ast.Gt), type(ast.GtE), type(ast.Is), type(ast.IsNot), type(ast.In), type(ast.NotIn))
     }
 
 
     # Node transformer callback functions and info for mutating the AST
     class __astNodeTransformerCallbacks_mutate(ast.NodeTransformer, mutation_types):
-        def __init__(self, operators: dict, mutationType, numRequestedMutations):
+        def __init__(self, operators: dict, mutationType, numRequestedMutations, analysisDict):
             self.operators = operators
             self.mutationType = mutationType
-            self.numRequestedMutations = numRequestedMutations
             self.numMutated = 0
 
             # Initialize a list of operator line and column numbers that can be mutated based on mutationType
             # random.choices() function may also be helpful
+            self.numOps = 0
+            for key in analysisDict:
+                self.numOps += len(analysisDict[key])
+            print(self.numOps)
+            
+            if self.numOps < numRequestedMutations:
+                print(Back.YELLOW + "[WARNING]" + Back.RESET + Style.BRIGHT + Fore.YELLOW + "Number of requested mutations is larger than the number of mutatable operators! This will mutate all operators." + Style.RESET_ALL)
 
 
 
         def shouldMutate(self, node):
-            if self.numMutated >= self.numRequestedMutations:
+            if self.numMutated >= self.numOps:
                 return False
             else:
                 return True
@@ -174,19 +180,16 @@ class Mutation:
                 try:
                     match self.mutationType:
                         case self.COMPLEMENT:
-                            match node.op:
-                                case ast.UAdd():
-                                    if "USub" in self.operators["unaryOps"]:
-                                        node.op = ast.USub()
-                                        self.numMutated += 1
+                            if isinstance(node.op, ast.UAdd):
+                                node.op = ast.USub()
+                                self.numMutated += 1
 
-                                case ast.USub():
-                                    if "UAdd" in self.operators["unaryOps"]:
-                                        node.op = ast.UAdd()
-                                        self.numMutated += 1
+                            elif isinstance(node.op, ast.USub):
+                                node.op = ast.UAdd()
+                                self.numMutated += 1
                                 
-                                case _:
-                                    print("Operator of type ", type(node.op), " does not have a complementary operator.")
+                            else:
+                                print("Operator of type ", type(node.op), " does not have a complementary operator.")
 
                         case self.RANDOM:
                             raise Exception('Mutation type not yet implemented')
@@ -206,39 +209,32 @@ class Mutation:
                 try:
                     match self.mutationType:
                         case self.COMPLEMENT:
-                            match node.op:
-                                case ast.Add():
-                                    if "Sub" in self.operators["binOps"]:
-                                        node.op = ast.Sub()
-                                        self.numMutated += 1
+                            if isinstance(node.op, ast.Add):
+                                node.op = ast.Sub()
+                                self.numMutated += 1
 
-                                case ast.Sub():
-                                    if "Add" in self.operators["binOps"]:
-                                        node.op = ast.Add()
-                                        self.numMutated += 1
+                            elif isinstance(node.op, ast.Sub):
+                                node.op = ast.Add()
+                                self.numMutated += 1       
+
+                            elif isinstance(node.op, ast.Mult):
+                                node.op = ast.Div()
+                                self.numMutated += 1
                             
-                                case ast.Mult():
-                                    if "Div" in self.operators["binOps"]:
-                                        node.op = ast.Div()
-                                        self.numMutated += 1
-                            
-                                case ast.Div():
-                                    if "Mult" in self.operators["binOps"]:
-                                        node.op = ast.Mult()
-                                        self.numMutated += 1
-                                    
-                                case ast.LShift():
-                                    if "Rshift" in self.operators["binOps"]:
-                                        node.op = ast.RShift()
-                                        self.numMutated += 1
+                            elif isinstance(node.op, ast.Div):
+                                node.op = ast.Mult()
+                                self.numMutated += 1
 
-                                case ast.RShift():
-                                    if "Lshift" in self.operators["binOps"]:
-                                        node.op = ast.LShift()
-                                        self.numMutated += 1
+                            elif isinstance(node.op, ast.LShift):
+                                node.op = ast.RShift()
+                                self.numMutated += 1
 
-                                case _:
-                                    print("Operator of type ", type(node.op), " does not have a complementary operator.")
+                            elif isinstance(node.op, ast.RShift):
+                                node.op = ast.LShift()
+                                self.numMutated += 1
+
+                            else:
+                                print("Operator of type ", type(node.op), " does not have a complementary operator.")
 
                         case self.RANDOM:
                             raise Exception('This mutation type is not yet implemented')
@@ -258,19 +254,16 @@ class Mutation:
                 try:
                     match self.mutationType:
                         case self.COMPLEMENT:
-                            match node.op:
-                                case ast.And():
-                                    if "Or" in self.operators["boolOps"]:
-                                        node.op = ast.Or()
-                                        self.numMutated += 1
+                            if isinstance(node.op, ast.And):
+                                node.op = ast.Or()
+                                self.numMutated += 1
 
-                                case ast.Or():
-                                    if "And" in self.operators["boolOps"]:
-                                        node.op = ast.And()
-                                        self.numMutated += 1
+                            elif isinstance(node.op, ast.Or):
+                                node.op = ast.And()
+                                self.numMutated += 1
                                 
-                                case _:
-                                    print("Operator of type ", type(node.op), " does not have a complementary operator.")
+                            else:
+                                print("Operator of type ", type(node.op), " does not have a complementary operator.")
 
                         case self.RANDOM:
                             raise Exception('Mutation type not yet implemented')
@@ -295,7 +288,7 @@ class Mutation:
                 for i in range(iterations):
                     mutatedTree = copy.deepcopy(self.tree)
 
-                    mutatedTree = self.__astNodeTransformerCallbacks_mutate(self.mutation_operators, mutation_type, numMutations).visit(mutatedTree)
+                    mutatedTree = self.__astNodeTransformerCallbacks_mutate(self.mutation_operators, mutation_type, numMutations, self.analysisInfo).visit(mutatedTree)
                     
                     mutatedTree = ast.fix_missing_locations(mutatedTree)
                     print(ast.unparse(mutatedTree))
@@ -308,6 +301,7 @@ class Mutation:
         except Exception as ex:
             print(Fore.WHITE + Back.RED + "[Error]" + Back.RESET + Style.BRIGHT + Fore.RED + " An exception of type " + type(ex).__name__ + " occured when trying to mutate:" + Style.RESET_ALL)
             print(Fore.WHITE + Back.RED + "[Error]" + Back.RESET + Style.BRIGHT + Fore.RED + " " + str(ex) + Style.RESET_ALL)
+            traceback.print_exc()
             raise
 
 
