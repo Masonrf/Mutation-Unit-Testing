@@ -1,4 +1,5 @@
 import ast
+from tempfile import tempdir
 from colorama import *
 init()
 from alive_progress import alive_bar
@@ -140,10 +141,10 @@ class Mutation():
 
     # Valid operators that can be used in the mutation
     mutation_operators = {
-        "unaryOps": (ast.UAdd, ast.USub, ast.Not, ast.Invert),
-        "binOps": (ast.Add, ast.Sub, ast.Mult, ast.Div, ast.FloorDiv, ast.Mod, ast.Pow, ast.LShift, ast.RShift, ast.BitOr, ast.BitXor, ast.BitAnd, ast.MatMult),
-        "boolOps": (ast.And, ast.Or),
-        "cmpOps": (ast.Eq, ast.NotEq, ast.Lt, ast.LtE, ast.Gt, ast.GtE, ast.Is, ast.IsNot, ast.In, ast.NotIn)
+        "unaryOps": [ast.UAdd, ast.USub, ast.Not, ast.Invert],
+        "binOps": [ast.Add, ast.Sub, ast.Mult, ast.Div, ast.FloorDiv, ast.Mod, ast.Pow, ast.LShift, ast.RShift, ast.BitOr, ast.BitXor, ast.BitAnd, ast.MatMult],
+        "boolOps": [ast.And, ast.Or],
+        "cmpOps": [ast.Eq, ast.NotEq, ast.Lt, ast.LtE, ast.Gt, ast.GtE, ast.Is, ast.IsNot, ast.In, ast.NotIn]
     }
 
 
@@ -178,7 +179,18 @@ class Mutation():
                                 print("Found valid operator: ", self.opsToMutate[-1])
 
                         case mutation_types.RANDOM:
-                            raise Exception('This mutation type has not been implemented yet!')
+                            # Comparisons have lists of operators
+                            if type(analysisDict[key][item][2]) is list:
+                                for op in range(len(analysisDict[key][item][2])):
+                                    if analysisDict[key][item][2][op] in self.operators[key]:
+                                        # Split up lists into single operators
+                                        self.opsToMutate.append((analysisDict[key][item][0], analysisDict[key][item][1], analysisDict[key][item][2][op]))
+                                        print("Found valid operator in list: ", self.opsToMutate[-1])
+
+                            # Non comparison
+                            elif analysisDict[key][item][2] in self.operators[key]:
+                                self.opsToMutate.append(analysisDict[key][item])
+                                print("Found valid operator: ", self.opsToMutate[-1])
                         
                         case _:
                             raise Exception('Unknown mutation type!')
@@ -237,7 +249,9 @@ class Mutation():
                                 print("Operator of type ", type(node.op), " does not have a complementary operator.")
 
                         case mutation_types.RANDOM:
-                            raise Exception('Mutation type not yet implemented')
+                            tmpOps = copy.deepcopy(self.operators["unaryOps"])
+                            tmpOps.remove(type(node.op))
+                            node.op = (random.choice(tmpOps))()
 
                         case _:
                             raise Exception('Unknown mutation type')
@@ -285,7 +299,9 @@ class Mutation():
                                 print("Operator of type ", type(node.op), " does not have a complementary operator.")
 
                         case mutation_types.RANDOM:
-                            raise Exception('This mutation type is not yet implemented')
+                            tmpOps = copy.deepcopy(self.operators["binOps"])
+                            tmpOps.remove(type(node.op))
+                            node.op = (random.choice(tmpOps))()
 
                         case _:
                             raise Exception('Unknown mutation type')
@@ -317,7 +333,9 @@ class Mutation():
                                 print("Operator of type ", type(node.op), " does not have a complementary operator.")
 
                         case mutation_types.RANDOM:
-                            raise Exception('Mutation type not yet implemented')
+                            tmpOps = copy.deepcopy(self.operators["boolOps"])
+                            tmpOps.remove(type(node.op))
+                            node.op = (random.choice(tmpOps))()
                         
                         case _:
                             raise Exception('Unknown mutation type')
@@ -382,7 +400,10 @@ class Mutation():
                                     print("Operator of type ", type(node.ops[op]), " does not have a complementary operator.")
 
                             case mutation_types.RANDOM:
-                                raise Exception('Mutation type not yet implemented')
+                                # Make sure a different operator is chosen
+                                tmpOps = copy.deepcopy(self.operators["cmpOps"])
+                                tmpOps.remove(type(node.ops[op]))
+                                node.ops[op] = (random.choice(tmpOps))()
                             
                             case _:
                                 raise Exception('Unknown mutation type')
