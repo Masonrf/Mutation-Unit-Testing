@@ -199,6 +199,7 @@ class Mutation:
 
 
 
+        # Check the list to see if the node should be mutated
         def shouldMutate(self, lineNum, ColNum, Ops):
             nodeInfo = (lineNum, ColNum, type(Ops))
             #print(nodeInfo)
@@ -215,8 +216,10 @@ class Mutation:
 
 
 
+        # Mutate Unary Operators:
+        # UnaryOps: ast.UAdd, ast.USub, ast.Not, ast.Invert
         def visit_UnaryOp(self, node):
-
+            self.generic_visit(node)
             if self.shouldMutate(node.lineno, node.col_offset, node.op):
                 try:
                     match self.mutationType:
@@ -245,8 +248,10 @@ class Mutation:
 
 
         
+        # Mutate Binary Operators
+        # BinOps: ast.Add, ast.Sub, ast.Mult, ast.Div, ast.FloorDiv, ast.Mod, ast.Pow, ast.LShift, ast.RShift, ast.BitOr, ast.BitXor, ast.BitAnd, ast.MatMult
         def visit_BinOp(self, node):
-
+            self.generic_visit(node)
             if self.shouldMutate(node.lineno, node.col_offset, node.op):
                 try:
                     match self.mutationType:
@@ -291,8 +296,10 @@ class Mutation:
 
 
 
+        # Mutate the Boolean operators
+        # BoolOps: ast.And, ast.Or
         def visit_BoolOp(self, node):
-
+            self.generic_visit(node)
             if self.shouldMutate(node.lineno, node.col_offset, node.op):
                 try:
                     match self.mutationType:
@@ -321,9 +328,10 @@ class Mutation:
         
 
 
-        # ast.Eq, ast.NotEq, ast.Lt, ast.LtE, ast.Gt, ast.GtE, ast.Is, ast.IsNot, ast.In, ast.NotIn
+        # Mutate comparison operators. This one is annoying because operators are in a list in the parse tree
+        # CmpOps: ast.Eq, ast.NotEq, ast.Lt, ast.LtE, ast.Gt, ast.GtE, ast.Is, ast.IsNot, ast.In, ast.NotIn
         def visit_Compare(self, node):
-
+            self.generic_visit(node)
             for op in range(len(node.ops)):
                 if self.shouldMutate(node.lineno, node.col_offset, node.ops[op]):
                     print("mutating compare: ", node.ops[op])
@@ -383,11 +391,8 @@ class Mutation:
                         raise
 
             return node
-        
 
-        #def visit_Constant(self, node):
-        #    newNode = ast.Constant(100)
-        #    return ast.copy_location(newNode, node)
+
 
     # An abstraction to be able to call any type of mutation function from one function call
     def mutate(self, mutation_type, iterations, numMutations):
