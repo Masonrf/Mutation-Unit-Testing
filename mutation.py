@@ -6,7 +6,13 @@ import copy
 import traceback
 import random
 
-class Mutation:
+
+# Types of mutations to be called with mutation.mutation_types.TYPE
+class mutation_types():
+    COMPLEMENT = 1
+    RANDOM = 2
+    
+class Mutation():
     def __init__(self, fileName: str):
         self.filename = fileName
         self.srcStr = ""
@@ -132,11 +138,6 @@ class Mutation:
 
 
 
-    # Types of mutations to be called with mutation.mutation_types.TYPE
-    class mutation_types():
-        COMPLEMENT = 1
-        RANDOM = 2
-
     # Valid operators that can be used in the mutation
     mutation_operators = {
         "unaryOps": (ast.UAdd, ast.USub, ast.Not, ast.Invert),
@@ -161,7 +162,7 @@ class Mutation:
             for key in analysisDict:
                 for item in range(len(analysisDict[key])):
                     match self.mutationType:
-                        case self.COMPLEMENT:
+                        case mutation_types.COMPLEMENT:
                             # Check both the valid complementary operator list and the given list of operators that are acceptable to mutate
                             # Comparisons have lists of operators
                             if type(analysisDict[key][item][2]) is list:
@@ -176,7 +177,7 @@ class Mutation:
                                 self.opsToMutate.append(analysisDict[key][item])
                                 print("Found valid operator: ", self.opsToMutate[-1])
 
-                        case self.RANDOM:
+                        case mutation_types.RANDOM:
                             raise Exception('This mutation type has not been implemented yet!')
                         
                         case _:
@@ -223,7 +224,7 @@ class Mutation:
             if self.shouldMutate(node.lineno, node.col_offset, node.op):
                 try:
                     match self.mutationType:
-                        case self.COMPLEMENT:
+                        case mutation_types.COMPLEMENT:
                             if isinstance(node.op, ast.UAdd):
                                 node.op = ast.USub()
                                 self.numMutated += 1
@@ -235,7 +236,7 @@ class Mutation:
                             else:
                                 print("Operator of type ", type(node.op), " does not have a complementary operator.")
 
-                        case self.RANDOM:
+                        case mutation_types.RANDOM:
                             raise Exception('Mutation type not yet implemented')
 
                         case _:
@@ -255,7 +256,7 @@ class Mutation:
             if self.shouldMutate(node.lineno, node.col_offset, node.op):
                 try:
                     match self.mutationType:
-                        case self.COMPLEMENT:
+                        case mutation_types.COMPLEMENT:
                             if isinstance(node.op, ast.Add):
                                 node.op = ast.Sub()
                                 self.numMutated += 1
@@ -283,7 +284,7 @@ class Mutation:
                             else:
                                 print("Operator of type ", type(node.op), " does not have a complementary operator.")
 
-                        case self.RANDOM:
+                        case mutation_types.RANDOM:
                             raise Exception('This mutation type is not yet implemented')
 
                         case _:
@@ -303,7 +304,7 @@ class Mutation:
             if self.shouldMutate(node.lineno, node.col_offset, node.op):
                 try:
                     match self.mutationType:
-                        case self.COMPLEMENT:
+                        case mutation_types.COMPLEMENT:
                             if isinstance(node.op, ast.And):
                                 node.op = ast.Or()
                                 self.numMutated += 1
@@ -315,7 +316,7 @@ class Mutation:
                             else:
                                 print("Operator of type ", type(node.op), " does not have a complementary operator.")
 
-                        case self.RANDOM:
+                        case mutation_types.RANDOM:
                             raise Exception('Mutation type not yet implemented')
                         
                         case _:
@@ -334,10 +335,9 @@ class Mutation:
             self.generic_visit(node)
             for op in range(len(node.ops)):
                 if self.shouldMutate(node.lineno, node.col_offset, node.ops[op]):
-                    print("mutating compare: ", node.ops[op])
                     try:
                         match self.mutationType:
-                            case self.COMPLEMENT:
+                            case mutation_types.COMPLEMENT:
                                 if isinstance(node.ops[op], ast.Eq):
                                     node.ops[op] = ast.NotEq()
                                     self.numMutated += 1
@@ -381,7 +381,7 @@ class Mutation:
                                 else:
                                     print("Operator of type ", type(node.ops[op]), " does not have a complementary operator.")
 
-                            case self.RANDOM:
+                            case mutation_types.RANDOM:
                                 raise Exception('Mutation type not yet implemented')
                             
                             case _:
