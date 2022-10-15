@@ -1,5 +1,4 @@
 import ast
-from tempfile import tempdir
 from colorama import *
 init()
 from alive_progress import alive_bar
@@ -54,7 +53,7 @@ class Mutation():
             raise
 
         except Exception as ex:
-            print(Fore.WHITE + Back.RED + "[Error]" + Back.RESET + Style.BRIGHT + Fore.RED + " An exception of type " + type(ex).__name__ + " occured when trying to read file " + self.filename + ":" + Style.RESET_ALL)
+            print(Fore.WHITE + Back.RED + "[Error]" + Back.RESET + Style.BRIGHT + Fore.RED + " An exception of type " + type(ex).__name__ + " occurred when trying to read file " + self.filename + ":" + Style.RESET_ALL)
             print(Fore.WHITE + Back.RED + "[Error]" + Back.RESET + Style.BRIGHT + Fore.RED + " " + str(ex) + Style.RESET_ALL)
             raise
 
@@ -133,7 +132,7 @@ class Mutation():
                 exportBar()
 
         except Exception as ex:
-            print(Fore.WHITE + Back.RED + "[Error]" + Back.RESET + Style.BRIGHT + Fore.RED + " An exception of type " + type(ex).__name__ + " occured when trying to write file " + destinationFilename + ":" + Style.RESET_ALL)
+            print(Fore.WHITE + Back.RED + "[Error]" + Back.RESET + Style.BRIGHT + Fore.RED + " An exception of type " + type(ex).__name__ + " occurred when trying to write file " + destinationFilename + ":" + Style.RESET_ALL)
             print(Fore.WHITE + Back.RED + "[Error]" + Back.RESET + Style.BRIGHT + Fore.RED + " " + str(ex) + Style.RESET_ALL)
             raise
 
@@ -178,6 +177,7 @@ class Mutation():
                                 self.opsToMutate.append(analysisDict[key][item])
                                 print("Found valid operator: ", self.opsToMutate[-1])
 
+                        # Some mutations with RANDOM do not make sense/will probably not be allowed by the interpreter. Will need to fix those in the future.
                         case mutation_types.RANDOM:
                             # Comparisons have lists of operators
                             if type(analysisDict[key][item][2]) is list:
@@ -249,6 +249,7 @@ class Mutation():
                                 print("Operator of type ", type(node.op), " does not have a complementary operator.")
 
                         case mutation_types.RANDOM:
+                            # Make sure a different operator is chosen
                             tmpOps = copy.deepcopy(self.operators["unaryOps"])
                             tmpOps.remove(type(node.op))
                             node.op = (random.choice(tmpOps))()
@@ -333,6 +334,7 @@ class Mutation():
                                 print("Operator of type ", type(node.op), " does not have a complementary operator.")
 
                         case mutation_types.RANDOM:
+                            # Make sure a different operator is chosen
                             tmpOps = copy.deepcopy(self.operators["boolOps"])
                             tmpOps.remove(type(node.op))
                             node.op = (random.choice(tmpOps))()
@@ -439,7 +441,7 @@ class Mutation():
 
 
         except Exception as ex:
-            print(Fore.WHITE + Back.RED + "[Error]" + Back.RESET + Style.BRIGHT + Fore.RED + " An exception of type " + type(ex).__name__ + " occured when trying to mutate:" + Style.RESET_ALL)
+            print(Fore.WHITE + Back.RED + "[Error]" + Back.RESET + Style.BRIGHT + Fore.RED + " An exception of type " + type(ex).__name__ + " occurred when trying to mutate:" + Style.RESET_ALL)
             print(Fore.WHITE + Back.RED + "[Error]" + Back.RESET + Style.BRIGHT + Fore.RED + " " + str(ex) + Style.RESET_ALL)
             traceback.print_exc()
             raise
