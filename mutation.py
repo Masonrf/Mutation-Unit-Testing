@@ -5,113 +5,151 @@ from alive_progress import alive_bar
 import copy
 import traceback
 import random
+import pytest
+from coverage import CoverageData
 
 
 # Types of mutations to be called with mutation.mutation_types.TYPE
 class mutation_types():
     COMPLEMENT = 1
     RANDOM = 2
+
+# Information obtained from the analysis of the tree
+class analysisInfo():
+    def __init__(self, fileName, tree):
+        self.fileName = fileName
+        self.tree = tree
+        self.unaryOps = []
+        self.binOps = []
+        self.boolOps = []
+        self.cmpOps = []
     
+    def __str__(self):
+        printStr = "Filename: " + str(self.fileName) + "\n"
+        printStr += "Tree: " + str(self.tree) + "\n"
+        printStr += "unaryOps: " + str(self.unaryOps) + "\n"
+        printStr += "binOps: " + str(self.binOps) + "\n"
+        printStr += "boolOps: " + str(self.boolOps) + "\n"
+        printStr += "cmpOps: " + str(self.cmpOps) + "\n"
+        return printStr
+
+
+
 class Mutation():
-    def __init__(self, fileName: str):
-        self.filename = fileName
-        self.srcStr = ""
+    def __init__(self, moduleNameToTest: str, unitTestFileName: str):
+        self.unitTestFileName = unitTestFileName
+        self.moduleNameToTest = moduleNameToTest
+
+        # List of analysisInfo() objects
+        self.analysisInfoList = []
+
         print()
-        with alive_bar(3, title='Initializing') as initBar:
-            # Load source from file
-            print("Loading source from " + self.filename)
-            self.__loadSource()
-            initBar()
-
-            # Parse source into tree
-            print("Parsing source into tree")
-            # It is possible to crash the Python interpreter with a sufficiently large/complex string due to stack depth limitations in Python’s AST compiler.
-            self.tree = ast.parse(self.srcStr)
-            initBar()
-
+        with alive_bar(4, title='Initializing') as initBar:
+            # coverage to figure out what .py files are used and lines are used by tests. move to folder not just filename
 
             # Analyze tree - look for pieces of code the unit test actually covers
+            print("Running a code coverage report on the given unit test file")
+            returnCode = pytest.main(["--cov-report", "term-missing", "--cov=" + self.moduleNameToTest, unitTestFileName])
+            print("Pytest return code: ", returnCode)
+            initBar()
 
+            # Parse coverage data
+            print("Parsing coverage report data")
+            report = CoverageData()
+            report.read()
+            print("In data file: ", report.base_filename())
+            print("Measured files: ", report.measured_files())
+            for i in report.measured_files():
+                print("File: ", i)
+                print("Line numbers: ", report.lines(i))
+            initBar()
+
+            # Load source(s) from file(s) and parse into tree(s)
+            #with alive_bar( len(report.measured_files()), title='Load/Parse') as loadBar:
+            for srcFileName in report.measured_files():
+                print("Loading and parsing source from " + srcFileName)
+                # It is possible to crash the Python interpreter with a sufficiently large/complex string due to stack depth limitations in Python’s AST compiler.
+                srcString = self.__loadSource(srcFileName)
+                tree = ast.parse(srcString)
+
+                self.analysisInfoList.append(analysisInfo(srcFileName, tree))
+                    #loadBar()
+
+                
+            initBar()
+                
 
             # Analyze tree - Count various operator types in the relevant piece of code
-            print("Analyzing tree")
-            self.__astNodeVisitorCallbacks_analyze(self.analysisInfo).visit(self.tree)
-            print("Types and number of operators: ", self.analysisInfo)           
+            for item in self.analysisInfoList:
+                print("Analyzing tree at: ", item.fileName)
+                self.__astNodeVisitorCallbacks_analyze(item).visit(item.tree)
+                print("Types and number of operators: ", item)           
             initBar()
 
 
     # Loads Python source code from file. Returns that source code as a string
-    def __loadSource(self):
+    def __loadSource(self, srcFileName: str):
         try:
-            if not (self.filename.lower().endswith('.py')):
+            if not (srcFileName.lower().endswith('.py')):
                 raise Exception('This program only supports python source code in .py files')
-            with open(self.filename, "r") as srcFile:
-                self.srcStr = srcFile.read()
+            with open(srcFileName, "r") as srcFile:
+                srcStr = srcFile.read()
+            
+            return srcStr
 
         except FileNotFoundError:
-            print(Fore.WHITE + Back.RED + "[Error]" + Back.RESET + Style.BRIGHT + Fore.RED + " File with name " + self.filename + " does not exist!" + Style.RESET_ALL)
+            print(Fore.WHITE + Back.RED + "[Error]" + Back.RESET + Style.BRIGHT + Fore.RED + " File with name " + self.srcFileName + " does not exist!" + Style.RESET_ALL)
             raise
 
         except Exception as ex:
-            print(Fore.WHITE + Back.RED + "[Error]" + Back.RESET + Style.BRIGHT + Fore.RED + " An exception of type " + type(ex).__name__ + " occurred when trying to read file " + self.filename + ":" + Style.RESET_ALL)
+            print(Fore.WHITE + Back.RED + "[Error]" + Back.RESET + Style.BRIGHT + Fore.RED + " An exception of type " + type(ex).__name__ + " occurred when trying to read file " + self.srcFileName + ":" + Style.RESET_ALL)
             print(Fore.WHITE + Back.RED + "[Error]" + Back.RESET + Style.BRIGHT + Fore.RED + " " + str(ex) + Style.RESET_ALL)
             raise
 
 
-    # Information obtained from the analysis of the tree
-    analysisInfo = {
-        "unaryOps": [],
-        "binOps": [],
-        "boolOps": [],
-        "cmpOps": []
-    }
 
 
     # Visit each node in the tree to obtain information on what mutatable source is in the tree
     # The information that is gathered is stored in analysisInfo
     class __astNodeVisitorCallbacks_analyze(ast.NodeVisitor):
-        def __init__(self, analysis):
+        def __init__(self, analysis: analysisInfo):
             self.analysis = analysis
 
         def visit_UnaryOp(self, node):
-            self.analysis["unaryOps"].append((node.lineno, node.col_offset, type(node.op)))
+            self.analysis.unaryOps.append((node.lineno, node.col_offset, type(node.op)))
             self.generic_visit(node)
         
         def visit_BinOp(self, node):
-            self.analysis["binOps"].append((node.lineno, node.col_offset, type(node.op)))
+            self.analysis.binOps.append((node.lineno, node.col_offset, type(node.op)))
             self.generic_visit(node)
         
         def visit_BoolOp(self, node):
-            self.analysis["boolOps"].append((node.lineno, node.col_offset, type(node.op)))
+            self.analysis.boolOps.append((node.lineno, node.col_offset, type(node.op)))
             self.generic_visit(node)
         
         def visit_Compare(self, node):
-            self.analysis["cmpOps"].append((node.lineno, node.col_offset, [type(item) for item in node.ops]))
+            self.analysis.cmpOps.append((node.lineno, node.col_offset, [type(item) for item in node.ops]))
             self.generic_visit(node)
     
 
 
     # Print out the source string
     def printSrc(self):
-        if self.srcStr == "":
-            print(Fore.YELLOW + "Cannot print source string. Invalid source code" + Style.RESET_ALL + "\n")
-
-        else:
+        for item in self.analysisInfoList:
+            srcStr = self.__loadSource(item.fileName)
             print()
-            print(Back.GREEN + "[From " + Style.BRIGHT + self.filename + Style.NORMAL + "]" + Style.RESET_ALL)
-            print(self.srcStr + Style.RESET_ALL + "\n")
+            print(Back.GREEN + "[From " + Style.BRIGHT + item.fileName + Style.NORMAL + "]" + Style.RESET_ALL)
+            print(srcStr + Style.RESET_ALL + "\n\n\n")
 
 
 
     # Print out the parse tree
     def printTree(self):
-        if self.srcStr == "":
-            print(Fore.YELLOW + "Cannot create tree. Invalid source code." + Style.RESET_ALL + "\n")
-
-        else:
+        for item in self.analysisInfoList:
+            srcStr = ast.dump(self.tree, indent=2)
             print()
-            print(Back.GREEN + "[Source file " + Style.BRIGHT + self.filename + Style.NORMAL + " as a tree]" + Style.RESET_ALL)
-            print(ast.dump(self.tree, indent=2) + "\n")
+            print(Back.GREEN + "[Source file " + Style.BRIGHT + self.srcFileName + Style.NORMAL + " as a tree]" + Style.RESET_ALL)
+            print(srcStr + "\n\n\n")
     
 
 
