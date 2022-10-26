@@ -51,6 +51,8 @@ class Mutation():
                 print("\nRunning a code coverage report on the given unit test file")
                 returnCode = pytest.main(["--cov-report", "term-missing", "--cov=" + self.moduleNameToTest, unitTestFileName])
                 print("Pytest return code: ", returnCode)
+                if(returnCode != pytest.ExitCode.OK):
+                    print(Fore.WHITE + Back.YELLOW + "[WARNING]" + Back.RESET + Style.BRIGHT + Fore.YELLOW + " Initial pytest tests failed! Mutation results may not be useful." + Style.RESET_ALL)
                 initBar()
 
                 # Parse coverage data
@@ -495,6 +497,5 @@ class Mutation():
             raise
 
 
-    # mutate
     # "recompile"
     # execute unit tests & save
