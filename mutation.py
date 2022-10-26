@@ -20,19 +20,18 @@ class analysisInfo():
         self.fileName = fileName
         self.tree = tree
         self.coverageLineNums = coverageLineNums
-        self.unaryOps = []
-        self.binOps = []
-        self.boolOps = []
-        self.cmpOps = []
+        self.operatorDict = {
+            "unaryOps": [],
+            "binOps": [],
+            "boolOps": [],
+            "cmpOps": []
+        }
     
     def __str__(self):
         printStr = "Filename: " + str(self.fileName) + "\n"
         printStr += "Tree: " + str(self.tree) + "\n"
         printStr += "Coverage Lines: " + str(self.coverageLineNums) + "\n"
-        printStr += "unaryOps: " + str(self.unaryOps) + "\n"
-        printStr += "binOps: " + str(self.binOps) + "\n"
-        printStr += "boolOps: " + str(self.boolOps) + "\n"
-        printStr += "cmpOps: " + str(self.cmpOps) + "\n"
+        printStr += "Operators: " + str(self.operatorDict) + "\n"
         return printStr
 
 
@@ -44,49 +43,49 @@ class Mutation():
 
         # List of analysisInfo() objects
         self.analysisInfoList = []
+        try:
+            with alive_bar(4, title='Initializing') as initBar:
+                # coverage to figure out what .py files are used and lines are used by tests. move to folder not just filename
 
-        print()
-        with alive_bar(4, title='Initializing') as initBar:
-            # coverage to figure out what .py files are used and lines are used by tests. move to folder not just filename
+                # Analyze tree - look for pieces of code the unit test actually covers
+                print("\nRunning a code coverage report on the given unit test file")
+                returnCode = pytest.main(["--cov-report", "term-missing", "--cov=" + self.moduleNameToTest, unitTestFileName])
+                print("Pytest return code: ", returnCode)
+                initBar()
 
-            # Analyze tree - look for pieces of code the unit test actually covers
-            print("Running a code coverage report on the given unit test file")
-            returnCode = pytest.main(["--cov-report", "term-missing", "--cov=" + self.moduleNameToTest, unitTestFileName])
-            print("Pytest return code: ", returnCode)
-            initBar()
+                # Parse coverage data
+                print("\nParsing coverage report data")
+                report = CoverageData()
+                report.read()
+                print("In data file: ", report.base_filename())
+                print("Measured files: ", report.measured_files())
+                for i in report.measured_files():
+                    print("File: ", i)
+                    print("Line numbers: ", report.lines(i))
+                initBar()
 
-            # Parse coverage data
-            print("Parsing coverage report data")
-            report = CoverageData()
-            report.read()
-            print("In data file: ", report.base_filename())
-            print("Measured files: ", report.measured_files())
-            for i in report.measured_files():
-                print("File: ", i)
-                print("Line numbers: ", report.lines(i))
-            initBar()
+                # Load source(s) from file(s) and parse into tree(s)
+                print()
+                for srcFileName in report.measured_files():
+                    print("Loading and parsing source from " + str(srcFileName))
+                    # It is possible to crash the Python interpreter with a sufficiently large/complex string due to stack depth limitations in Python’s AST compiler.
+                    srcString = self.__loadSource(srcFileName)
+                    tree = ast.parse(srcString)
 
-            # Load source(s) from file(s) and parse into tree(s)
-            #with alive_bar( len(report.measured_files()), title='Load/Parse') as loadBar:
-            for srcFileName in report.measured_files():
-                print("Loading and parsing source from " + srcFileName)
-                # It is possible to crash the Python interpreter with a sufficiently large/complex string due to stack depth limitations in Python’s AST compiler.
-                srcString = self.__loadSource(srcFileName)
-                tree = ast.parse(srcString)
+                    self.analysisInfoList.append(analysisInfo(srcFileName, tree, report.lines(srcFileName)))
 
-                self.analysisInfoList.append(analysisInfo(srcFileName, tree, report.lines(srcFileName)))
-                    #loadBar()
-
-                
-            initBar()
-                
-
-            # Analyze tree - Count various operator types in the relevant piece of code
-            for item in self.analysisInfoList:
-                print("Analyzing tree at: ", item.fileName)
-                self.__astNodeVisitorCallbacks_analyze(item).visit(item.tree)
-                print("Types and number of operators: ", item)           
-            initBar()
+                initBar()
+                    
+                # Analyze tree - Count various operator types in the relevant piece of code
+                for item in self.analysisInfoList:
+                    print("\nAnalyzing tree at: ", item.fileName)
+                    self.__astNodeVisitorCallbacks_analyze(item).visit(item.tree)
+                    print("Types and number of operators: ", item)           
+                initBar()
+            
+        except Exception as ex:
+            traceback.print_exc()
+            raise
 
 
     # Loads Python source code from file. Returns that source code as a string
@@ -106,6 +105,7 @@ class Mutation():
         except Exception as ex:
             print(Fore.WHITE + Back.RED + "[Error]" + Back.RESET + Style.BRIGHT + Fore.RED + " An exception of type " + type(ex).__name__ + " occurred when trying to read file " + self.srcFileName + ":" + Style.RESET_ALL)
             print(Fore.WHITE + Back.RED + "[Error]" + Back.RESET + Style.BRIGHT + Fore.RED + " " + str(ex) + Style.RESET_ALL)
+            traceback.print_exc()
             raise
 
 
@@ -118,19 +118,19 @@ class Mutation():
             self.analysis = analysis
 
         def visit_UnaryOp(self, node):
-            self.analysis.unaryOps.append((node.lineno, node.col_offset, type(node.op)))
+            self.analysis.operatorDict["unaryOps"].append((node.lineno, node.col_offset, type(node.op)))
             self.generic_visit(node)
         
         def visit_BinOp(self, node):
-            self.analysis.binOps.append((node.lineno, node.col_offset, type(node.op)))
+            self.analysis.operatorDict["binOps"].append((node.lineno, node.col_offset, type(node.op)))
             self.generic_visit(node)
         
         def visit_BoolOp(self, node):
-            self.analysis.boolOps.append((node.lineno, node.col_offset, type(node.op)))
+            self.analysis.operatorDict["boolOps"].append((node.lineno, node.col_offset, type(node.op)))
             self.generic_visit(node)
         
         def visit_Compare(self, node):
-            self.analysis.cmpOps.append((node.lineno, node.col_offset, [type(item) for item in node.ops]))
+            self.analysis.operatorDict["cmpOps"].append((node.lineno, node.col_offset, [type(item) for item in node.ops]))
             self.generic_visit(node)
     
 
@@ -174,6 +174,7 @@ class Mutation():
         except Exception as ex:
             print(Fore.WHITE + Back.RED + "[Error]" + Back.RESET + Style.BRIGHT + Fore.RED + " An exception of type " + type(ex).__name__ + " occurred when trying to write file " + destinationFilename + ":" + Style.RESET_ALL)
             print(Fore.WHITE + Back.RED + "[Error]" + Back.RESET + Style.BRIGHT + Fore.RED + " " + str(ex) + Style.RESET_ALL)
+            traceback.print_exc()
             raise
 
 
@@ -467,12 +468,13 @@ class Mutation():
 
             with alive_bar(iterations, title='Mutating') as mutBar:
                 for i in range(iterations):
-                    mutatedTree = copy.deepcopy(self.tree)
+                    for item in self.analysisInfoList:
+                        mutatedTree = copy.deepcopy(item.tree)
 
-                    mutatedTree = self.__astNodeTransformerCallbacks_mutate(self.mutation_operators, mutation_type, numMutations, self.analysisInfo).visit(mutatedTree)
-                    
-                    mutatedTree = ast.fix_missing_locations(mutatedTree)
-                    print(ast.unparse(mutatedTree))
+                        mutatedTree = self.__astNodeTransformerCallbacks_mutate(self.mutation_operators, mutation_type, numMutations, item.operatorDict).visit(mutatedTree)
+                        
+                        mutatedTree = ast.fix_missing_locations(mutatedTree)
+                        print(ast.unparse(mutatedTree))
 
 
                     ## run unit test
