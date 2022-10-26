@@ -16,9 +16,10 @@ class mutation_types():
 
 # Information obtained from the analysis of the tree
 class analysisInfo():
-    def __init__(self, fileName, tree):
+    def __init__(self, fileName, tree, coverageLineNums):
         self.fileName = fileName
         self.tree = tree
+        self.coverageLineNums = coverageLineNums
         self.unaryOps = []
         self.binOps = []
         self.boolOps = []
@@ -27,6 +28,7 @@ class analysisInfo():
     def __str__(self):
         printStr = "Filename: " + str(self.fileName) + "\n"
         printStr += "Tree: " + str(self.tree) + "\n"
+        printStr += "Coverage Lines: " + str(self.coverageLineNums) + "\n"
         printStr += "unaryOps: " + str(self.unaryOps) + "\n"
         printStr += "binOps: " + str(self.binOps) + "\n"
         printStr += "boolOps: " + str(self.boolOps) + "\n"
@@ -72,7 +74,7 @@ class Mutation():
                 srcString = self.__loadSource(srcFileName)
                 tree = ast.parse(srcString)
 
-                self.analysisInfoList.append(analysisInfo(srcFileName, tree))
+                self.analysisInfoList.append(analysisInfo(srcFileName, tree, report.lines(srcFileName)))
                     #loadBar()
 
                 
@@ -146,9 +148,9 @@ class Mutation():
     # Print out the parse tree
     def printTree(self):
         for item in self.analysisInfoList:
-            srcStr = ast.dump(self.tree, indent=2)
+            srcStr = ast.dump(item.tree, indent=2)
             print()
-            print(Back.GREEN + "[Source file " + Style.BRIGHT + self.srcFileName + Style.NORMAL + " as a tree]" + Style.RESET_ALL)
+            print(Back.GREEN + "[Source file " + Style.BRIGHT + item.fileName + Style.NORMAL + " as a tree]" + Style.RESET_ALL)
             print(srcStr + "\n\n\n")
     
 
