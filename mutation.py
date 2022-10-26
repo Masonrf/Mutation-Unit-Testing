@@ -190,7 +190,7 @@ class Mutation():
 
     # Node transformer callback functions and info for mutating the AST
     class __astNodeTransformerCallbacks_mutate(ast.NodeTransformer, mutation_types):
-        def __init__(self, operators: dict, mutationType, numRequestedMutations, analysisDict):
+        def __init__(self, operators: dict, mutationType, numRequestedMutations, analysisInfoNode: analysisInfo):
             validComplementaryOpsList = [ast.UAdd, ast.USub, ast.Add, ast.Sub, ast.Mult, ast.Div, ast.LShift, ast.RShift, ast.And, ast.Or, ast.Eq, ast.NotEq, ast.Lt, ast.LtE, ast.Gt, ast.GtE, ast.Is, ast.IsNot, ast.In, ast.NotIn]
             self.operators = operators
             self.mutationType = mutationType
@@ -200,6 +200,8 @@ class Mutation():
             # random.choices() function may also be helpful
             self.opsToMutate = []
             
+            analysisDict = analysisInfoNode.operatorDict
+
             for key in analysisDict:
                 for item in range(len(analysisDict[key])):
                     match self.mutationType:
@@ -208,13 +210,15 @@ class Mutation():
                             # Comparisons have lists of operators
                             if type(analysisDict[key][item][2]) is list:
                                 for op in range(len(analysisDict[key][item][2])):
-                                    if (analysisDict[key][item][2][op] in validComplementaryOpsList) and (analysisDict[key][item][2][op] in self.operators[key]):
+                                    # Check that the operator is in the valid complementary operators list and provided list of operators to use. Also make sure the line number matches a coverage line number
+                                    if (analysisDict[key][item][2][op] in validComplementaryOpsList) and (analysisDict[key][item][2][op] in self.operators[key]) and (analysisDict[key][item][0] in analysisInfoNode.coverageLineNums):
                                         # Split up lists into single operators
                                         self.opsToMutate.append((analysisDict[key][item][0], analysisDict[key][item][1], analysisDict[key][item][2][op]))
                                         print("Found valid operator in list: ", self.opsToMutate[-1])
 
                             # Non comparison
-                            elif (analysisDict[key][item][2] in validComplementaryOpsList) and (analysisDict[key][item][2] in self.operators[key]):
+                            # Check that the operator is in the valid complementary operators list and provided list of operators to use. Also make sure the line number matches a coverage line number
+                            elif (analysisDict[key][item][2] in validComplementaryOpsList) and (analysisDict[key][item][2] in self.operators[key]) and (analysisDict[key][item][0] in analysisInfoNode.coverageLineNums):
                                 self.opsToMutate.append(analysisDict[key][item])
                                 print("Found valid operator: ", self.opsToMutate[-1])
 
@@ -223,13 +227,15 @@ class Mutation():
                             # Comparisons have lists of operators
                             if type(analysisDict[key][item][2]) is list:
                                 for op in range(len(analysisDict[key][item][2])):
-                                    if analysisDict[key][item][2][op] in self.operators[key]:
+                                    # Check that the operator is in the provided list of operators to use. Also make sure the line number matches a coverage line number
+                                    if (analysisDict[key][item][2][op] in self.operators[key]) and (analysisDict[key][item][0] in analysisInfoNode.coverageLineNums):
                                         # Split up lists into single operators
                                         self.opsToMutate.append((analysisDict[key][item][0], analysisDict[key][item][1], analysisDict[key][item][2][op]))
                                         print("Found valid operator in list: ", self.opsToMutate[-1])
 
                             # Non comparison
-                            elif analysisDict[key][item][2] in self.operators[key]:
+                            # Check that the operator is in the provided list of operators to use. Also make sure the line number matches a coverage line number
+                            elif (analysisDict[key][item][2] in self.operators[key]) and (analysisDict[key][item][0] in analysisInfoNode.coverageLineNums):
                                 self.opsToMutate.append(analysisDict[key][item])
                                 print("Found valid operator: ", self.opsToMutate[-1])
                         
@@ -471,7 +477,7 @@ class Mutation():
                     for item in self.analysisInfoList:
                         mutatedTree = copy.deepcopy(item.tree)
 
-                        mutatedTree = self.__astNodeTransformerCallbacks_mutate(self.mutation_operators, mutation_type, numMutations, item.operatorDict).visit(mutatedTree)
+                        mutatedTree = self.__astNodeTransformerCallbacks_mutate(self.mutation_operators, mutation_type, numMutations, item).visit(mutatedTree)
                         
                         mutatedTree = ast.fix_missing_locations(mutatedTree)
                         print(ast.unparse(mutatedTree))
