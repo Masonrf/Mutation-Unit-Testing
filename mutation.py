@@ -7,6 +7,7 @@ import traceback
 import random
 import pytest
 from coverage import CoverageData
+from pathlib import Path
 
 
 # Types of mutations to be called with mutation.mutation_types.TYPE
@@ -160,23 +161,20 @@ class Mutation():
     # Converts the parse tree back into code
     def __exportTreeAsSource(self, tree, destinationFilename):
         try:
-            with alive_bar(2, title='Exporting Mutated Source') as exportBar:
-                print("Converting from tree to source")
-                # Some warnings about the unparse function from the library documentation:
-                # Warning The produced code string will not necessarily be equal to the original code that generated the ast.AST object.
-                # Trying to unparse a highly complex expression would result with RecursionError.
-                src = ast.unparse(tree)
-                exportBar()
+            print("Converting from tree to source")
+            # Some warnings about the unparse function from the library documentation:
+            # Warning The produced code string will not necessarily be equal to the original code that generated the ast.AST object.
+            # Trying to unparse a highly complex expression would result with RecursionError.
+            src = ast.unparse(tree)
 
-                print("Writing to file " + destinationFilename)
-                with open(destinationFilename, "w") as destFile:
-                    destFile.write(src)
-                exportBar()
+            print("Writing to file " + destinationFilename)
+            with open(destinationFilename, "w") as destFile:
+                destFile.write(src)
 
         except Exception as ex:
             print(Fore.WHITE + Back.RED + "[Error]" + Back.RESET + Style.BRIGHT + Fore.RED + " An exception of type " + type(ex).__name__ + " occurred when trying to write file " + destinationFilename + ":" + Style.RESET_ALL)
             print(Fore.WHITE + Back.RED + "[Error]" + Back.RESET + Style.BRIGHT + Fore.RED + " " + str(ex) + Style.RESET_ALL)
-            traceback.print_exc()
+            #traceback.print_exc()
             raise
 
 
@@ -465,9 +463,12 @@ class Mutation():
             return node
 
 
+    def getIterationDirName(self, iterationNum) -> str:
+        return str(Path().resolve()) + "/mutation-unit-test/iteration-" + str(iterationNum)
+
 
     # An abstraction to be able to call any type of mutation function from one function call
-    def mutate(self, mutation_type, iterations, numMutations):
+    def mutate(self, mutation_type: mutation_types, iterations: int, numMutations: int, printTreeAfterMutate=False, deleteMutatedSourceAfterMutate=True):
         try:
             if iterations < 1:
                 raise Exception('Number of iterations cannot be less than 1!')
@@ -476,18 +477,42 @@ class Mutation():
 
             with alive_bar(iterations, title='Mutating') as mutBar:
                 for i in range(iterations):
+                    # Make a new folder for each iteration
+                    folderPath = self.getIterationDirName(i)
+                    Path(folderPath).mkdir(parents=True, exist_ok=True)
+
+                    # Each python file
                     for item in self.analysisInfoList:
                         mutatedTree = copy.deepcopy(item.tree)
 
                         mutatedTree = self.__astNodeTransformerCallbacks_mutate(self.mutation_operators, mutation_type, numMutations, item).visit(mutatedTree)
                         
                         mutatedTree = ast.fix_missing_locations(mutatedTree)
-                        print(ast.unparse(mutatedTree))
+                        if printTreeAfterMutate:
+                            print(ast.unparse(mutatedTree))
+                        
+                        self.__exportTreeAsSource(item.tree, folderPath + "/" + Path(item.fileName).name)
 
 
                     ## run unit test
+
+                    # Append results to report in mutation-unit-test/
                     
                     mutBar()
+
+            if deleteMutatedSourceAfterMutate:
+                print("Cleaning up")
+                for i in range(iterations):
+                    folderPath = self.getIterationDirName(i)
+
+                    # Delete all .py files from iteration folder
+                    for item in self.analysisInfoList:
+                        Path(folderPath + "/" + Path(item.fileName).name).unlink()
+                    
+                    # Delete iteration folder
+                    Path(folderPath).rmdir()
+                
+
 
 
         except Exception as ex:
