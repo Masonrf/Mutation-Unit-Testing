@@ -8,7 +8,7 @@ import random
 import pytest
 from coverage import CoverageData
 from pathlib import Path
-
+from shutil import copytree, rmtree, ignore_patterns
 
 # Types of mutations to be called with mutation.mutation_types.TYPE
 class mutation_types():
@@ -50,7 +50,7 @@ class Mutation():
 
                 # Analyze tree - look for pieces of code the unit test actually covers
                 print("\nRunning a code coverage report on the given unit test file")
-                returnCode = pytest.main(["--cov-report", "term-missing", "--cov=" + self.moduleNameToTest, unitTestFileName])
+                returnCode = pytest.main(["--cov-report", "term-missing", "--cov=" + self.moduleNameToTest, self.unitTestFileName])
                 print("Pytest return code: ", returnCode)
                 if(returnCode != pytest.ExitCode.OK):
                     print(Fore.WHITE + Back.YELLOW + "[WARNING]" + Back.RESET + Style.BRIGHT + Fore.YELLOW + " Initial pytest tests failed! Mutation results may not be useful." + Style.RESET_ALL)
@@ -463,23 +463,29 @@ class Mutation():
             return node
 
 
-    def getIterationDirName(self, iterationNum) -> str:
+    def __getIterationDirName(self, iterationNum) -> str:
         return str(Path().resolve()) + "/mutation-unit-test/iteration-" + str(iterationNum)
 
 
     # An abstraction to be able to call any type of mutation function from one function call
-    def mutate(self, mutation_type: mutation_types, iterations: int, numMutations: int, printTreeAfterMutate=False, deleteMutatedSourceAfterMutate=True):
+    def mutate(self, mutation_type: mutation_types, iterations: int, numMutations: int, printTreeAfterMutate=False, cleanUpFilesAfterMutate=True):
         try:
             if iterations < 1:
                 raise Exception('Number of iterations cannot be less than 1!')
             if numMutations < 1:
                 raise Exception('Number of mutations cannot be less than 1!')
 
+            # Start mutation
             with alive_bar(iterations, title='Mutating') as mutBar:
                 for i in range(iterations):
                     # Make a new folder for each iteration
-                    folderPath = self.getIterationDirName(i)
-                    Path(folderPath).mkdir(parents=True, exist_ok=True)
+                    iterPath = Path(self.__getIterationDirName(i))
+                    folderPath = Path(self.__getIterationDirName(i) + "/" + self.moduleNameToTest)
+
+                    if iterPath.exists():
+                        rmtree(self.__getIterationDirName(i))
+
+                    folderPath.mkdir(parents=True, exist_ok=True)
 
                     # Each python file
                     for item in self.analysisInfoList:
@@ -491,26 +497,28 @@ class Mutation():
                         if printTreeAfterMutate:
                             print(ast.unparse(mutatedTree))
                         
-                        self.__exportTreeAsSource(item.tree, folderPath + "/" + Path(item.fileName).name)
+                        self.__exportTreeAsSource(item.tree, str(folderPath) + "/" + Path(item.fileName).name)
+
+                        print("\n")
 
 
-                    ## run unit test
+                    # Copy test files to iteration directory
+                    print("Copy: ", self.unitTestFileName, " -> ", self.__getIterationDirName(i) + "/" + self.unitTestFileName)
+                    copytree(self.unitTestFileName, self.__getIterationDirName(i) + "/" + self.unitTestFileName, ignore=ignore_patterns('*.pyc'))
+
+
+                    
+
+                    #returnCode = pytest.main([self.unitTestFileName])
+                    #print("Pytest return code: ", returnCode)
 
                     # Append results to report in mutation-unit-test/
                     
+                    # Remove iteration directory
+                    if cleanUpFilesAfterMutate:
+                        rmtree(self.__getIterationDirName(i))
+
                     mutBar()
-
-            if deleteMutatedSourceAfterMutate:
-                print("Cleaning up")
-                for i in range(iterations):
-                    folderPath = self.getIterationDirName(i)
-
-                    # Delete all .py files from iteration folder
-                    for item in self.analysisInfoList:
-                        Path(folderPath + "/" + Path(item.fileName).name).unlink()
-                    
-                    # Delete iteration folder
-                    Path(folderPath).rmdir()
                 
 
 
