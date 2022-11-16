@@ -8,7 +8,7 @@ import random
 import pytest
 from coverage import CoverageData
 from pathlib import Path
-from shutil import copytree, rmtree, ignore_patterns
+from shutil import copy2, rmtree, copytree
 
 # Types of mutations to be called with mutation.mutation_types.TYPE
 class mutation_types():
@@ -166,6 +166,7 @@ class Mutation():
             # Warning The produced code string will not necessarily be equal to the original code that generated the ast.AST object.
             # Trying to unparse a highly complex expression would result with RecursionError.
             src = ast.unparse(tree)
+            print("\n\n", src, "\n")
 
             print("Writing to file " + destinationFilename)
             with open(destinationFilename, "w") as destFile:
@@ -463,62 +464,61 @@ class Mutation():
             return node
 
 
-    def __getIterationDirName(self, iterationNum) -> str:
-        return str(Path().resolve()) + "/mutation-unit-test/iteration-" + str(iterationNum)
+    def __getMutationDirName(self) -> str:
+        return str(Path().resolve()) + "/mutation-unit-test"
+    
+    def __getFullModulesToTestPath(self) -> str:
+        return str(Path().resolve()) + "/" + self.moduleNameToTest
 
 
     # An abstraction to be able to call any type of mutation function from one function call
-    def mutate(self, mutation_type: mutation_types, iterations: int, numMutations: int, printTreeAfterMutate=False, cleanUpFilesAfterMutate=True):
+    def mutate(self, mutation_type: mutation_types, iterations: int, numMutations: int, printTreeAfterMutate=False, removeBackup=True):
         try:
             if iterations < 1:
                 raise Exception('Number of iterations cannot be less than 1!')
             if numMutations < 1:
                 raise Exception('Number of mutations cannot be less than 1!')
 
+            mutationDirPath = Path(self.__getMutationDirName())
+            mutationDirPath.mkdir(parents=True, exist_ok=True)
+
+            # Remove old backup if it exists
+            backupPath = Path(self.__getMutationDirName() + "/backup-" + self.moduleNameToTest)
+            if backupPath.exists():
+                print("Overwriting old backup")
+                rmtree(str(backupPath))
+            
+            # Backup files that are going to be overwritten on mutate
+            copytree(self.__getFullModulesToTestPath(), str(backupPath))
+
             # Start mutation
-            with alive_bar(iterations, title='Mutating') as mutBar:
-                for i in range(iterations):
-                    # Make a new folder for each iteration
-                    iterPath = Path(self.__getIterationDirName(i))
-                    folderPath = Path(self.__getIterationDirName(i) + "/" + self.moduleNameToTest)
+            #with alive_bar(iterations, title='Mutating') as mutBar:
+            for i in range(iterations):
 
-                    if iterPath.exists():
-                        rmtree(self.__getIterationDirName(i))
+                # Each python file
+                for item in self.analysisInfoList:
+                    mutatedTree = copy.deepcopy(item.tree)
+                    mutatedTree = self.__astNodeTransformerCallbacks_mutate(self.mutation_operators, mutation_type, numMutations, item).visit(mutatedTree)
+                    mutatedTree = ast.fix_missing_locations(mutatedTree)
 
-                    folderPath.mkdir(parents=True, exist_ok=True)
-
-                    # Each python file
-                    for item in self.analysisInfoList:
-                        mutatedTree = copy.deepcopy(item.tree)
-
-                        mutatedTree = self.__astNodeTransformerCallbacks_mutate(self.mutation_operators, mutation_type, numMutations, item).visit(mutatedTree)
-                        
-                        mutatedTree = ast.fix_missing_locations(mutatedTree)
-                        if printTreeAfterMutate:
-                            print(ast.unparse(mutatedTree))
-                        
-                        self.__exportTreeAsSource(item.tree, str(folderPath) + "/" + Path(item.fileName).name)
-
-                        print("\n")
-
-
-                    # Copy test files to iteration directory
-                    print("Copy: ", self.unitTestFileName, " -> ", self.__getIterationDirName(i) + "/" + self.unitTestFileName)
-                    copytree(self.unitTestFileName, self.__getIterationDirName(i) + "/" + self.unitTestFileName, ignore=ignore_patterns('*.pyc'))
-
-
+                    if printTreeAfterMutate:
+                        print(ast.unparse(mutatedTree))
                     
+                    self.__exportTreeAsSource(mutatedTree, item.fileName)
 
-                    #returnCode = pytest.main([self.unitTestFileName])
-                    #print("Pytest return code: ", returnCode)
+                returnCode = pytest.main([self.unitTestFileName])
+                print("Pytest return code on iteration ", i ,": ", returnCode)
 
-                    # Append results to report in mutation-unit-test/
-                    
-                    # Remove iteration directory
-                    if cleanUpFilesAfterMutate:
-                        rmtree(self.__getIterationDirName(i))
+                # Append results to report in mutation-unit-test/
+                
+            # Copy backup back to original location
+            rmtree(self.__getFullModulesToTestPath())
+            copytree(str(backupPath), self.__getFullModulesToTestPath())
 
-                    mutBar()
+            # Remove iteration directory
+            if removeBackup:
+                rmtree(str(backupPath))
+
                 
 
 
@@ -527,8 +527,21 @@ class Mutation():
             print(Fore.WHITE + Back.RED + "[Error]" + Back.RESET + Style.BRIGHT + Fore.RED + " An exception of type " + type(ex).__name__ + " occurred when trying to mutate:" + Style.RESET_ALL)
             print(Fore.WHITE + Back.RED + "[Error]" + Back.RESET + Style.BRIGHT + Fore.RED + " " + str(ex) + Style.RESET_ALL)
             traceback.print_exc()
+
+            # Copy backup back to original location
+            print(Fore.WHITE + Back.YELLOW + "[WARNING]" + Back.RESET + Style.BRIGHT + Fore.YELLOW + " Restoring from backup due to exception in mutate()." + Style.RESET_ALL)
+            rmtree(self.__getFullModulesToTestPath())
+            copytree(str(backupPath), self.__getFullModulesToTestPath())
             raise
 
 
-    # "recompile"
-    # execute unit tests & save
+
+
+# (enter mutate function)
+# full backup clone self.modulenametotest to mutation-unit-test folder. use shutil.copytree
+# perform mutation on modules to test
+# run pytest again
+# append result of run to result file in mutation-unit-test folder
+# [run through the rest of the iterations]
+# finish and restore backup to original
+# {on exception, restore original files}
