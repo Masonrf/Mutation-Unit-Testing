@@ -1,3 +1,5 @@
+import sys
+sys.dont_write_bytecode = True
 import ast
 from colorama import *
 init()
@@ -8,7 +10,9 @@ import random
 import pytest
 from coverage import CoverageData
 from pathlib import Path
-from shutil import copy2, rmtree, copytree
+from shutil import rmtree, copytree
+import multiprocessing
+import subprocess
 
 # Types of mutations to be called with mutation.mutation_types.TYPE
 class mutation_types():
@@ -50,10 +54,12 @@ class Mutation():
 
                 # Analyze tree - look for pieces of code the unit test actually covers
                 print("\nRunning a code coverage report on the given unit test file")
-                returnCode = pytest.main(["--cov-report", "term-missing", "--cov=" + self.moduleNameToTest, self.unitTestFileName])
-                print("Pytest return code: ", returnCode)
-                if(returnCode != pytest.ExitCode.OK):
-                    print(Fore.WHITE + Back.YELLOW + "[WARNING]" + Back.RESET + Style.BRIGHT + Fore.YELLOW + " Initial pytest tests failed! Mutation results may not be useful." + Style.RESET_ALL)
+                p_init = subprocess.Popen("python3 -m pytest --cov-report term-missing --cov=" + self.moduleNameToTest + " " + self.unitTestFileName)
+                p_init.wait()
+                #returnCode = pytest.main(["--cov-report", "term-missing", "--cov=" + self.moduleNameToTest, self.unitTestFileName])
+                #print("Pytest return code: ", returnCode)
+                #if(returnCode != pytest.ExitCode.OK):
+                #    print(Fore.WHITE + Back.YELLOW + "[WARNING]" + Back.RESET + Style.BRIGHT + Fore.YELLOW + " Initial pytest tests failed! Mutation results may not be useful." + Style.RESET_ALL)
                 initBar()
 
                 # Parse coverage data
@@ -166,10 +172,10 @@ class Mutation():
             # Warning The produced code string will not necessarily be equal to the original code that generated the ast.AST object.
             # Trying to unparse a highly complex expression would result with RecursionError.
             src = ast.unparse(tree)
-            print("\n\n", src, "\n")
+            print("\n", src)
 
             print("Writing to file " + destinationFilename)
-            with open(destinationFilename, "w") as destFile:
+            with open(destinationFilename, "w+") as destFile:
                 destFile.write(src)
 
         except Exception as ex:
@@ -491,6 +497,11 @@ class Mutation():
             # Backup files that are going to be overwritten on mutate
             copytree(self.__getFullModulesToTestPath(), str(backupPath))
 
+            # Remove files
+            # (doesnt help)
+            rmtree(self.__getFullModulesToTestPath())
+            Path(self.__getFullModulesToTestPath()).mkdir(parents=True, exist_ok=True)
+
             # Start mutation
             #with alive_bar(iterations, title='Mutating') as mutBar:
             for i in range(iterations):
@@ -506,10 +517,18 @@ class Mutation():
                     
                     self.__exportTreeAsSource(mutatedTree, item.fileName)
 
-                returnCode = pytest.main([self.unitTestFileName])
-                print("Pytest return code on iteration ", i ,": ", returnCode)
+                # Remove pytest cache (doesnt help)
+                #input("Press Enter to continue...")
+                #pytest.Cache.clear_cache()
+                p_mut = subprocess.Popen("python3 -m pytest " + self.unitTestFileName)
+                p_mut.wait()
+                #returnCode = pytest.main([self.unitTestFileName])
+                
+                #print("Pytest return code on iteration ", i ,": ", returnCode)
 
+                #input("Press Enter to continue...")
                 # Append results to report in mutation-unit-test/
+                # pytest.TestReport.
                 
             # Copy backup back to original location
             rmtree(self.__getFullModulesToTestPath())
@@ -518,9 +537,6 @@ class Mutation():
             # Remove iteration directory
             if removeBackup:
                 rmtree(str(backupPath))
-
-                
-
 
 
         except Exception as ex:
@@ -533,8 +549,6 @@ class Mutation():
             rmtree(self.__getFullModulesToTestPath())
             copytree(str(backupPath), self.__getFullModulesToTestPath())
             raise
-
-
 
 
 # (enter mutate function)
