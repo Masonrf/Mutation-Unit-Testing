@@ -43,15 +43,23 @@ class Mutation():
         self.unitTestFileName = unitTestFileName
         self.moduleNameToTest = moduleNameToTest
 
+        self.logDir = Path(self.__getMutationDirName() + "/pytest-logs")
+
         # List of analysisInfo() objects
         self.analysisInfoList = []
         try:
-            # coverage to figure out what .py files are used and lines are used by tests. move to folder not just filename
+            if self.logDir.exists():
+                print("Overwriting old logs")
+                rmtree(str(self.logDir))
+                
+            # (Re)make the mutation-unit-test/ folder
+            self.logDir.mkdir(parents=True, exist_ok=True)
 
-            # Analyze tree - look for pieces of code the unit test actually covers
-            print("\nRunning a code coverage report on the given unit test file")
-            p_init = subprocess.Popen("python3 -m pytest --cov-report term-missing --cov=" + self.moduleNameToTest + " " + self.unitTestFileName)
-            p_init.wait()
+            with open(str(self.logDir) + "/initial-pytest-report.txt", "w+") as covReportLog:
+                # Analyze tree - look for pieces of code the unit test actually covers
+                print("\nRunning a code coverage report on the given unit test file")
+                p_init = subprocess.Popen("python3 -m pytest --cov-report term-missing --cov=" + self.moduleNameToTest + " " + self.unitTestFileName, stdout=covReportLog, stderr=covReportLog)
+                p_init.wait()
 
             #    print(Fore.WHITE + Back.YELLOW + "[WARNING]" + Back.RESET + Style.BRIGHT + Fore.YELLOW + " Initial pytest tests failed! Mutation results may not be useful." + Style.RESET_ALL)
 
@@ -155,14 +163,15 @@ class Mutation():
 
 
     # Converts the parse tree back into code
-    def __exportTreeAsSource(self, tree, destinationFilename):
+    def __exportTreeAsSource(self, tree, destinationFilename, printSrc=False):
         try:
             print("Converting from tree to source")
             # Some warnings about the unparse function from the library documentation:
             # Warning The produced code string will not necessarily be equal to the original code that generated the ast.AST object.
             # Trying to unparse a highly complex expression would result with RecursionError.
             src = ast.unparse(tree)
-            print("\n", src)
+            if printSrc:
+                print("\n", src)
 
             print("Writing to file " + destinationFilename)
             with open(destinationFilename, "w+") as destFile:
@@ -475,9 +484,6 @@ class Mutation():
             if numMutations < 1:
                 raise Exception('Number of mutations cannot be less than 1!')
 
-            mutationDirPath = Path(self.__getMutationDirName())
-            mutationDirPath.mkdir(parents=True, exist_ok=True)
-
             # Remove old backup if it exists
             backupPath = Path(self.__getMutationDirName() + "/backup-" + self.moduleNameToTest)
             if backupPath.exists():
@@ -505,9 +511,9 @@ class Mutation():
                     
                     self.__exportTreeAsSource(mutatedTree, item.fileName)
 
-
-                p_mut = subprocess.Popen("python3 -m pytest " + self.unitTestFileName)
-                p_mut.wait()
+                with open(str(self.logDir) + "/pytest-report-iteration-" + str(i) + ".txt", "w+") as iterationLog:
+                    p_mut = subprocess.Popen("python3 -m pytest " + self.unitTestFileName, stdout=iterationLog, stderr=iterationLog)
+                    p_mut.wait()
 
                 # Append results to report in mutation-unit-test/
                 
