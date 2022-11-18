@@ -3,15 +3,12 @@ sys.dont_write_bytecode = True
 import ast
 from colorama import *
 init()
-from alive_progress import alive_bar
 import copy
 import traceback
 import random
-import pytest
 from coverage import CoverageData
 from pathlib import Path
 from shutil import rmtree, copytree
-import multiprocessing
 import subprocess
 
 # Types of mutations to be called with mutation.mutation_types.TYPE
@@ -49,48 +46,41 @@ class Mutation():
         # List of analysisInfo() objects
         self.analysisInfoList = []
         try:
-            with alive_bar(4, title='Initializing') as initBar:
-                # coverage to figure out what .py files are used and lines are used by tests. move to folder not just filename
+            # coverage to figure out what .py files are used and lines are used by tests. move to folder not just filename
 
-                # Analyze tree - look for pieces of code the unit test actually covers
-                print("\nRunning a code coverage report on the given unit test file")
-                p_init = subprocess.Popen("python3 -m pytest --cov-report term-missing --cov=" + self.moduleNameToTest + " " + self.unitTestFileName)
-                p_init.wait()
-                #returnCode = pytest.main(["--cov-report", "term-missing", "--cov=" + self.moduleNameToTest, self.unitTestFileName])
-                #print("Pytest return code: ", returnCode)
-                #if(returnCode != pytest.ExitCode.OK):
-                #    print(Fore.WHITE + Back.YELLOW + "[WARNING]" + Back.RESET + Style.BRIGHT + Fore.YELLOW + " Initial pytest tests failed! Mutation results may not be useful." + Style.RESET_ALL)
-                initBar()
+            # Analyze tree - look for pieces of code the unit test actually covers
+            print("\nRunning a code coverage report on the given unit test file")
+            p_init = subprocess.Popen("python3 -m pytest --cov-report term-missing --cov=" + self.moduleNameToTest + " " + self.unitTestFileName)
+            p_init.wait()
 
-                # Parse coverage data
-                print("\nParsing coverage report data")
-                report = CoverageData()
-                report.read()
-                print("In data file: ", report.base_filename())
-                print("Measured files: ", report.measured_files())
-                for i in report.measured_files():
-                    print("File: ", i)
-                    print("Line numbers: ", report.lines(i))
-                initBar()
+            #    print(Fore.WHITE + Back.YELLOW + "[WARNING]" + Back.RESET + Style.BRIGHT + Fore.YELLOW + " Initial pytest tests failed! Mutation results may not be useful." + Style.RESET_ALL)
 
-                # Load source(s) from file(s) and parse into tree(s)
-                print()
-                for srcFileName in report.measured_files():
-                    print("Loading and parsing source from " + str(srcFileName))
-                    # It is possible to crash the Python interpreter with a sufficiently large/complex string due to stack depth limitations in Python’s AST compiler.
-                    srcString = self.__loadSource(srcFileName)
-                    tree = ast.parse(srcString)
+            # Parse coverage data
+            print("\nParsing coverage report data")
+            report = CoverageData()
+            report.read()
+            print("In data file: ", report.base_filename())
+            print("Measured files: ", report.measured_files())
+            for i in report.measured_files():
+                print("File: ", i)
+                print("Line numbers: ", report.lines(i))
 
-                    self.analysisInfoList.append(analysisInfo(srcFileName, tree, report.lines(srcFileName)))
+            # Load source(s) from file(s) and parse into tree(s)
+            print()
+            for srcFileName in report.measured_files():
+                print("Loading and parsing source from " + str(srcFileName))
+                # It is possible to crash the Python interpreter with a sufficiently large/complex string due to stack depth limitations in Python’s AST compiler.
+                srcString = self.__loadSource(srcFileName)
+                tree = ast.parse(srcString)
 
-                initBar()
-                    
-                # Analyze tree - Count various operator types in the relevant piece of code
-                for item in self.analysisInfoList:
-                    print("\nAnalyzing tree at: ", item.fileName)
-                    self.__astNodeVisitorCallbacks_analyze(item).visit(item.tree)
-                    print("Types and number of operators: ", item)           
-                initBar()
+                self.analysisInfoList.append(analysisInfo(srcFileName, tree, report.lines(srcFileName)))
+
+                
+            # Analyze tree - Count various operator types in the relevant piece of code
+            for item in self.analysisInfoList:
+                print("\nAnalyzing tree at: ", item.fileName)
+                self.__astNodeVisitorCallbacks_analyze(item).visit(item.tree)
+                print("Types and number of operators: ", item)           
             
         except Exception as ex:
             traceback.print_exc()
@@ -503,9 +493,7 @@ class Mutation():
             Path(self.__getFullModulesToTestPath()).mkdir(parents=True, exist_ok=True)
 
             # Start mutation
-            #with alive_bar(iterations, title='Mutating') as mutBar:
             for i in range(iterations):
-
                 # Each python file
                 for item in self.analysisInfoList:
                     mutatedTree = copy.deepcopy(item.tree)
@@ -517,18 +505,11 @@ class Mutation():
                     
                     self.__exportTreeAsSource(mutatedTree, item.fileName)
 
-                # Remove pytest cache (doesnt help)
-                #input("Press Enter to continue...")
-                #pytest.Cache.clear_cache()
+
                 p_mut = subprocess.Popen("python3 -m pytest " + self.unitTestFileName)
                 p_mut.wait()
-                #returnCode = pytest.main([self.unitTestFileName])
-                
-                #print("Pytest return code on iteration ", i ,": ", returnCode)
 
-                #input("Press Enter to continue...")
                 # Append results to report in mutation-unit-test/
-                # pytest.TestReport.
                 
             # Copy backup back to original location
             rmtree(self.__getFullModulesToTestPath())
