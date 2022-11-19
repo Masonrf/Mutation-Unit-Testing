@@ -51,14 +51,14 @@ class Mutation():
             if self.logDir.exists():
                 print("Overwriting old logs")
                 rmtree(str(self.logDir))
-                
+
             # (Re)make the mutation-unit-test/ folder
             self.logDir.mkdir(parents=True, exist_ok=True)
 
-            with open(str(self.logDir) + "/initial-pytest-report.txt", "w+") as covReportLog:
+            with open(str(self.logDir) + "/initial-pytest-log.txt", "w+") as covReportLog:
                 # Analyze tree - look for pieces of code the unit test actually covers
                 print("\nRunning a code coverage report on the given unit test file")
-                p_init = subprocess.Popen("python3 -m pytest --cov-report term-missing --cov=" + self.moduleNameToTest + " " + self.unitTestFileName, stdout=covReportLog, stderr=covReportLog)
+                p_init = subprocess.Popen("python3 -m pytest --junit-xml=\"" + self.__getMutationDirName() + "/initial-report.xml\" --cov-report term-missing --cov=" + self.moduleNameToTest + " " + self.unitTestFileName, stdout=covReportLog, stderr=covReportLog)
                 p_init.wait()
 
             #    print(Fore.WHITE + Back.YELLOW + "[WARNING]" + Back.RESET + Style.BRIGHT + Fore.YELLOW + " Initial pytest tests failed! Mutation results may not be useful." + Style.RESET_ALL)
@@ -511,8 +511,8 @@ class Mutation():
                     
                     self.__exportTreeAsSource(mutatedTree, item.fileName)
 
-                with open(str(self.logDir) + "/pytest-report-iteration-" + str(i) + ".txt", "w+") as iterationLog:
-                    p_mut = subprocess.Popen("python3 -m pytest " + self.unitTestFileName, stdout=iterationLog, stderr=iterationLog)
+                with open(str(self.logDir) + "/pytest-log-iteration-" + str(i) + ".txt", "w+") as iterationLog:
+                    p_mut = subprocess.Popen("python3 -m pytest --junit-xml=\"" + self.__getMutationDirName() + "/report-iteration-" + str(i) + ".xml\" " + self.unitTestFileName, stdout=iterationLog, stderr=iterationLog)
                     p_mut.wait()
 
                 # Append results to report in mutation-unit-test/
