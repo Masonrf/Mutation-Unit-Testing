@@ -67,12 +67,15 @@ class Mutation():
             initialXML = JUnitXml.fromfile(self.__getMutationDirName() + "/initial-report.xml")
             for suite in initialXML:
                 print("Suite " + str(suite.name) + " ran " + str(suite.tests) + " tests in " + str(suite.time) + " s")
-                if suite.errors > 0:
-                    print(Fore.WHITE + Back.YELLOW + "[WARNING]" + Back.RESET + Style.BRIGHT + Fore.YELLOW + str(suite.errors) + " initial test(s) threw an error! Mutation results may not be useful." + Style.RESET_ALL)
-                if suite.failures > 0:
-                    print(Fore.WHITE + Back.YELLOW + "[WARNING]" + Back.RESET + Style.BRIGHT + Fore.YELLOW + str(suite.failures) + " initial test(s) failed! Mutation results may not be useful." + Style.RESET_ALL)
-                if suite.skipped > 0:
-                    print(Fore.WHITE + Back.YELLOW + "[WARNING]" + Back.RESET + Style.BRIGHT + Fore.YELLOW + str(suite.skipped) + " initial test(s) were skipped! Mutation results may not be useful." + Style.RESET_ALL)
+                if suite.errors == 0 and suite.failures == 0 and suite.skipped == 0:
+                    print("All tests passed.\n")
+                else:
+                    if suite.errors > 0:
+                        print(Fore.WHITE + Back.YELLOW + "[WARNING]" + Back.RESET + Style.BRIGHT + Fore.YELLOW + str(suite.errors) + " initial test(s) threw an error! Mutation results may not be useful." + Style.RESET_ALL)
+                    if suite.failures > 0:
+                        print(Fore.WHITE + Back.YELLOW + "[WARNING]" + Back.RESET + Style.BRIGHT + Fore.YELLOW + str(suite.failures) + " initial test(s) failed! Mutation results may not be useful." + Style.RESET_ALL)
+                    if suite.skipped > 0:
+                        print(Fore.WHITE + Back.YELLOW + "[WARNING]" + Back.RESET + Style.BRIGHT + Fore.YELLOW + str(suite.skipped) + " initial test(s) were skipped! Mutation results may not be useful." + Style.RESET_ALL)
 
 
             # Parse coverage data
@@ -505,11 +508,6 @@ class Mutation():
             # Backup files that are going to be overwritten on mutate
             copytree(self.__getFullModulesToTestPath(), str(backupPath))
 
-            # Remove files
-            # (doesnt help)
-            rmtree(self.__getFullModulesToTestPath())
-            Path(self.__getFullModulesToTestPath()).mkdir(parents=True, exist_ok=True)
-
             # Start mutation
             for i in range(iterations):
                 # Each python file
@@ -544,16 +542,20 @@ class Mutation():
                         result = testcase.result[0]
                         resultTypeStr = ""
 
-                        if type(result) is junitparser.Failure:
-                            resultTypeStr = "failure"
-                        elif type(result) is junitparser.Error:
-                            resultTypeStr = "error"
-                        elif type(result) is junitparser.Skipped:
-                            resultTypeStr = "skipped"
+                        if len(testcase.result) == 0:
+                            resultTypeStr = "Passed"
+                            print(str(testcase.classname) + ": " + str(testcase.name) + " -> " + resultTypeStr)
                         else:
-                            resultTypeStr = "UNKNOWN!"
+                            if type(result) is junitparser.Failure:
+                                resultTypeStr = "failure"
+                            elif type(result) is junitparser.Error:
+                                resultTypeStr = "error"
+                            elif type(result) is junitparser.Skipped:
+                                resultTypeStr = "skipped"
+                            else:
+                                resultTypeStr = "UNKNOWN!"
 
-                        print(str(testcase.classname) + ": " + str(testcase.name) + " -> " + resultTypeStr + " (" + result.message.replace('\n', ' ') + ")")
+                            print(str(testcase.classname) + ": " + str(testcase.name) + " -> " + resultTypeStr + " (" + result.message.replace('\n', ' ') + ")")
 
                 # Append results to report in mutation-unit-test/
                 
