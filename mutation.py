@@ -10,7 +10,7 @@ from coverage import CoverageData
 from pathlib import Path
 from shutil import rmtree, copytree
 import subprocess
-from junitparser import JUnitXml
+from junitparser import *
 
 # Types of mutations to be called with mutation.mutation_types.TYPE
 class mutation_types():
@@ -56,6 +56,7 @@ class Mutation():
             # (Re)make the mutation-unit-test/ folder
             self.logDir.mkdir(parents=True, exist_ok=True)
 
+            print("\nRunning initial pytest tests")
             with open(str(self.logDir) + "/initial-pytest-log.txt", "w+") as covReportLog:
                 # Analyze tree - look for pieces of code the unit test actually covers
                 print("\nRunning a code coverage report on the given unit test file")
@@ -64,13 +65,14 @@ class Mutation():
 
             # Check the pytest xml to see if any tests failed on default
             initialXML = JUnitXml.fromfile(self.__getMutationDirName() + "/initial-report.xml")
-            print("Pytest ran " + str(initialXML.tests) + " tests in " + str(initialXML.time) + " s")
-            if initialXML.errors > 0:
-                print(Fore.WHITE + Back.YELLOW + "[WARNING]" + Back.RESET + Style.BRIGHT + Fore.YELLOW + str(initialXML.errors) + " initial pytest test(s) threw an error! Mutation results may not be useful." + Style.RESET_ALL)
-            if initialXML.failures > 0:
-                print(Fore.WHITE + Back.YELLOW + "[WARNING]" + Back.RESET + Style.BRIGHT + Fore.YELLOW + str(initialXML.failures) + " initial pytest test(s) failed! Mutation results may not be useful." + Style.RESET_ALL)
-            if initialXML.skipped > 0:
-                print(Fore.WHITE + Back.YELLOW + "[WARNING]" + Back.RESET + Style.BRIGHT + Fore.YELLOW + str(initialXML.skipped) + " initial pytest test(s) were skipped! Mutation results may not be useful." + Style.RESET_ALL)
+            for suite in initialXML:
+                print("Suite " + str(suite.name) + " ran " + str(suite.tests) + " tests in " + str(suite.time) + " s")
+                if suite.errors > 0:
+                    print(Fore.WHITE + Back.YELLOW + "[WARNING]" + Back.RESET + Style.BRIGHT + Fore.YELLOW + str(suite.errors) + " initial test(s) threw an error! Mutation results may not be useful." + Style.RESET_ALL)
+                if suite.failures > 0:
+                    print(Fore.WHITE + Back.YELLOW + "[WARNING]" + Back.RESET + Style.BRIGHT + Fore.YELLOW + str(suite.failures) + " initial test(s) failed! Mutation results may not be useful." + Style.RESET_ALL)
+                if suite.skipped > 0:
+                    print(Fore.WHITE + Back.YELLOW + "[WARNING]" + Back.RESET + Style.BRIGHT + Fore.YELLOW + str(suite.skipped) + " initial test(s) were skipped! Mutation results may not be useful." + Style.RESET_ALL)
 
 
             # Parse coverage data
@@ -521,9 +523,37 @@ class Mutation():
                     
                     self.__exportTreeAsSource(mutatedTree, item.fileName)
 
+                print("\nRunning pytest on iteration " + str(i))
                 with open(str(self.logDir) + "/pytest-log-iteration-" + str(i) + ".txt", "w+") as iterationLog:
                     p_mut = subprocess.Popen("python3 -m pytest --junit-xml=\"" + self.__getMutationDirName() + "/report-iteration-" + str(i) + ".xml\" " + self.unitTestFileName, stdout=iterationLog, stderr=iterationLog)
                     p_mut.wait()
+
+                # Get results from xml file
+                print("Results:")
+                iterationXML = JUnitXml.fromfile(self.__getMutationDirName() + "/report-iteration-" + str(i) + ".xml")
+                for suite in iterationXML:
+                    print("Suite " + str(suite.name) + " ran " + str(suite.tests) + " tests in " + str(suite.time) + " s")
+                    if suite.errors > 0:
+                        print(Fore.WHITE + Back.YELLOW + "[WARNING]" + Back.RESET + Style.BRIGHT + Fore.YELLOW + str(suite.errors) + " mutated test(s) threw an error! Mutation results may not be useful." + Style.RESET_ALL)
+                    if suite.skipped > 0:
+                        print(Fore.WHITE + Back.YELLOW + "[WARNING]" + Back.RESET + Style.BRIGHT + Fore.YELLOW + str(suite.skipped) + " mutated test(s) were skipped! Mutation results may not be useful." + Style.RESET_ALL)
+
+                    for testcase in suite:
+                        if len(testcase.result) > 1:
+                            raise Exception('Unexpected number of results from xml file')
+                        result = testcase.result[0]
+                        resultTypeStr = ""
+
+                        if type(result) is junitparser.Failure:
+                            resultTypeStr = "failure"
+                        elif type(result) is junitparser.Error:
+                            resultTypeStr = "error"
+                        elif type(result) is junitparser.Skipped:
+                            resultTypeStr = "skipped"
+                        else:
+                            resultTypeStr = "UNKNOWN!"
+
+                        print(str(testcase.classname) + ": " + str(testcase.name) + " -> " + resultTypeStr + " (" + result.message.replace('\n', ' ') + ")")
 
                 # Append results to report in mutation-unit-test/
                 
