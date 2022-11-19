@@ -10,6 +10,7 @@ from coverage import CoverageData
 from pathlib import Path
 from shutil import rmtree, copytree
 import subprocess
+from junitparser import JUnitXml
 
 # Types of mutations to be called with mutation.mutation_types.TYPE
 class mutation_types():
@@ -61,7 +62,16 @@ class Mutation():
                 p_init = subprocess.Popen("python3 -m pytest --junit-xml=\"" + self.__getMutationDirName() + "/initial-report.xml\" --cov-report term-missing --cov=" + self.moduleNameToTest + " " + self.unitTestFileName, stdout=covReportLog, stderr=covReportLog)
                 p_init.wait()
 
-            #    print(Fore.WHITE + Back.YELLOW + "[WARNING]" + Back.RESET + Style.BRIGHT + Fore.YELLOW + " Initial pytest tests failed! Mutation results may not be useful." + Style.RESET_ALL)
+            # Check the pytest xml to see if any tests failed on default
+            initialXML = JUnitXml.fromfile(self.__getMutationDirName() + "/initial-report.xml")
+            print("Pytest ran " + str(initialXML.tests) + " tests in " + str(initialXML.time) + " s")
+            if initialXML.errors > 0:
+                print(Fore.WHITE + Back.YELLOW + "[WARNING]" + Back.RESET + Style.BRIGHT + Fore.YELLOW + str(initialXML.errors) + " initial pytest test(s) threw an error! Mutation results may not be useful." + Style.RESET_ALL)
+            if initialXML.failures > 0:
+                print(Fore.WHITE + Back.YELLOW + "[WARNING]" + Back.RESET + Style.BRIGHT + Fore.YELLOW + str(initialXML.failures) + " initial pytest test(s) failed! Mutation results may not be useful." + Style.RESET_ALL)
+            if initialXML.skipped > 0:
+                print(Fore.WHITE + Back.YELLOW + "[WARNING]" + Back.RESET + Style.BRIGHT + Fore.YELLOW + str(initialXML.skipped) + " initial pytest test(s) were skipped! Mutation results may not be useful." + Style.RESET_ALL)
+
 
             # Parse coverage data
             print("\nParsing coverage report data")
@@ -538,11 +548,7 @@ class Mutation():
             raise
 
 
-# (enter mutate function)
-# full backup clone self.modulenametotest to mutation-unit-test folder. use shutil.copytree
-# perform mutation on modules to test
-# run pytest again
+
+# make into package and require dependencies
+
 # append result of run to result file in mutation-unit-test folder
-# [run through the rest of the iterations]
-# finish and restore backup to original
-# {on exception, restore original files}
