@@ -569,7 +569,7 @@ class Mutation():
                 iterationXML = JUnitXml.fromfile(self.__getMutationDirName() + "/report-iteration-" + str(i) + ".xml")
                 for suite in iterationXML:
                     print("Suite " + str(suite.name) + " ran " + str(suite.tests) + " tests in " + str(suite.time) + " s")
-                    print(str(suite.name) + " results: [Errors: " + str(suite.errors) + ", Failures: " + str(suite.failures) + ", Skipped: " + str(suite.skipped) + "]")
+                    print(str(suite.name) + " results: [Failures (killed mutants): " + str(suite.failures) + ", Errors: " + str(suite.errors) + ", Skipped: " + str(suite.skipped) + "]")
                     if suite.errors > 0:
                         print(Fore.WHITE + Back.YELLOW + "[WARNING]" + Back.RESET + Style.BRIGHT + Fore.YELLOW + str(suite.errors) + " mutated test(s) threw an error! Mutation results may not be useful." + Style.RESET_ALL)
                     if suite.skipped > 0:
@@ -582,19 +582,20 @@ class Mutation():
                         resultTypeStr = ""
 
                         if len(testcase.result) == 0:
-                            resultTypeStr = "Passed"
+                            resultTypeStr = Style.BRIGHT + Fore.MAGENTA + "Passed (test failed to kill mutant!)" + Style.RESET_ALL
+                            print(Fore.WHITE + Back.MAGENTA + Style.BRIGHT + "Failed to kill mutant on " + str(testcase.name) + "!" + Style.RESET_ALL)
                             if self.verbose:
                                 print(str(testcase.classname) + ": " + str(testcase.name) + " -> " + resultTypeStr)
                         else:
                             result = testcase.result[0]
                             if type(result) is junitparser.Failure:
-                                resultTypeStr = "failure"
+                                resultTypeStr = Style.BRIGHT + Fore.GREEN + "failure (test killed mutant!)" + Style.RESET_ALL
                             elif type(result) is junitparser.Error:
-                                resultTypeStr = "error"
+                                resultTypeStr = Style.BRIGHT + Fore.RED + "error" + Style.RESET_ALL
                             elif type(result) is junitparser.Skipped:
-                                resultTypeStr = "skipped"
+                                resultTypeStr = Style.BRIGHT + Fore.YELLOW + "skipped" + Style.RESET_ALL
                             else:
-                                resultTypeStr = "UNKNOWN!"
+                                resultTypeStr = Style.BRIGHT + Fore.CYAN + "UNKNOWN!" + Style.RESET_ALL
 
                             if self.verbose:
                                 print(str(testcase.classname) + ": " + str(testcase.name) + " -> " + resultTypeStr + " (" + result.message.replace('\n', ' ') + ")")
