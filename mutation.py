@@ -310,7 +310,10 @@ class Mutation():
             for i in range(self.numOps - numRequestedMutations):
                 self.opsToMutate.pop(random.randrange(len(self.opsToMutate)))
             
-            print("Operators that will be mutated: ", self.opsToMutate)
+            print("Operators that will be mutated:")
+            for i in self.opsToMutate:
+                print("\t", i)
+            print()
             
             self.numOps = len(self.opsToMutate)
 
@@ -545,6 +548,7 @@ class Mutation():
 
             # Start mutation
             for i in range(iterations):
+                print("\n----------------[Iteration " + str(i) + "]----------------")
                 # Each python file
                 for item in self.analysisInfoList:
                     mutatedTree = copy.deepcopy(item.tree)
@@ -562,11 +566,10 @@ class Mutation():
                     p_mut.wait()
 
                 # Get results from xml file
-                print("Results:")
                 iterationXML = JUnitXml.fromfile(self.__getMutationDirName() + "/report-iteration-" + str(i) + ".xml")
                 for suite in iterationXML:
                     print("Suite " + str(suite.name) + " ran " + str(suite.tests) + " tests in " + str(suite.time) + " s")
-                    print(str(suite.name) + "results: [Errors: " + str(suite.errors) + ", Failures: " + str(suite.failures) + ", Skipped: " + str(suite.skipped) + "]")
+                    print(str(suite.name) + " results: [Errors: " + str(suite.errors) + ", Failures: " + str(suite.failures) + ", Skipped: " + str(suite.skipped) + "]")
                     if suite.errors > 0:
                         print(Fore.WHITE + Back.YELLOW + "[WARNING]" + Back.RESET + Style.BRIGHT + Fore.YELLOW + str(suite.errors) + " mutated test(s) threw an error! Mutation results may not be useful." + Style.RESET_ALL)
                     if suite.skipped > 0:
@@ -597,6 +600,7 @@ class Mutation():
                                 print(str(testcase.classname) + ": " + str(testcase.name) + " -> " + resultTypeStr + " (" + result.message.replace('\n', ' ') + ")")
 
                 # Append results to report in mutation-unit-test/
+            print("----------------[End i"+ str(i) +"]----------------")
                 
             # Copy backup back to original location
             rmtree(self.__getFullModulesToTestPath())
