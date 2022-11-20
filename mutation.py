@@ -48,9 +48,10 @@ class analysisInfo():
 
 
 class Mutation():
-    def __init__(self, moduleNameToTest: str, unitTestFileName: str):
+    def __init__(self, moduleNameToTest: str, unitTestFileName: str, verbose=False):
         self.unitTestFileName = unitTestFileName
         self.moduleNameToTest = moduleNameToTest
+        self.verbose = verbose
 
         self.logDir = Path(self.__getMutationDirName() + "/pytest-logs")
         self.resultFilepath = self.__getMutationDirName() + "/mutation-results.txt"
@@ -79,7 +80,8 @@ class Mutation():
                 for suite in initialXML:
                     initResultStr = "Suite " + str(suite.name) + " ran " + str(suite.tests) + " tests in " + str(suite.time) + " s\n"
                     resultFile.write(initResultStr)
-                    print(initResultStr)
+                    if self.verbose:
+                        print(initResultStr)
 
                     if suite.errors == 0 and suite.failures == 0 and suite.skipped == 0:
                         print("All tests passed.\n")
@@ -91,7 +93,6 @@ class Mutation():
                         if suite.skipped > 0:
                             print(Fore.WHITE + Back.YELLOW + "[WARNING]" + Back.RESET + Style.BRIGHT + Fore.YELLOW + str(suite.skipped) + " initial test(s) were skipped! Mutation results may not be useful." + Style.RESET_ALL)
 
-
                 # Parse coverage data
                 print("\nParsing coverage report data")
                 report = CoverageData()
@@ -101,15 +102,17 @@ class Mutation():
                 resultFile.write("Coverage file: " + str(report.base_filename()) + "\n")
                 resultFile.write("Measured files:\n")
 
-                print("In coverage file: ", report.base_filename())
-                print("Measured files: ", report.measured_files())
+                if self.verbose:
+                    print("In coverage file: ", report.base_filename())
+                    print("Measured files: ", report.measured_files())
 
                 for i in report.measured_files():
                     resultFile.write("\tFile: " + str(i) + "\n")
                     resultFile.write("\tLine numbers: " + str(report.lines(i)) + "\n")
 
-                    print("File: ", i)
-                    print("Line numbers: ", report.lines(i))
+                    if self.verbose:
+                        print("File: ", i)
+                        print("Line numbers: ", report.lines(i))
 
                 # Load source(s) from file(s) and parse into tree(s)
                 print()
@@ -125,8 +128,9 @@ class Mutation():
                 # Analyze tree - Count various operator types in the relevant piece of code
                 for item in self.analysisInfoList:
                     self.__astNodeVisitorCallbacks_analyze(item).visit(item.tree)
-                    print("Types and number of operators: ", item)
                     resultFile.write(str(item) + "\n")
+                    if self.verbose :
+                        print("Types and number of operators: ", item)
 
                 resultFile.write("----------------[Initialization End]----------------\n")
 
@@ -213,7 +217,9 @@ class Mutation():
             if printSrc:
                 print("\n", src)
 
-            print("Writing to file " + destinationFilename)
+            if self.verbose:
+                print("Writing to file " + destinationFilename)
+
             with open(destinationFilename, "w+") as destFile:
                 destFile.write(src)
 
@@ -236,11 +242,12 @@ class Mutation():
 
     # Node transformer callback functions and info for mutating the AST
     class __astNodeTransformerCallbacks_mutate(ast.NodeTransformer, mutation_types):
-        def __init__(self, operators: dict, mutationType, numRequestedMutations, analysisInfoNode: analysisInfo):
+        def __init__(self, operators: dict, mutationType, numRequestedMutations, analysisInfoNode: analysisInfo, verbose=False):
             validComplementaryOpsList = [ast.UAdd, ast.USub, ast.Add, ast.Sub, ast.Mult, ast.Div, ast.LShift, ast.RShift, ast.And, ast.Or, ast.Eq, ast.NotEq, ast.Lt, ast.LtE, ast.Gt, ast.GtE, ast.Is, ast.IsNot, ast.In, ast.NotIn]
             self.operators = operators
             self.mutationType = mutationType
             self.numMutated = 0
+            self.verbose = verbose
 
             # Initialize a list of operator line and column numbers that can be mutated based on mutationType
             # random.choices() function may also be helpful
@@ -260,13 +267,15 @@ class Mutation():
                                     if (analysisDict[key][item][2][op] in validComplementaryOpsList) and (analysisDict[key][item][2][op] in self.operators[key]) and (analysisDict[key][item][0] in analysisInfoNode.coverageLineNums):
                                         # Split up lists into single operators
                                         self.opsToMutate.append((analysisDict[key][item][0], analysisDict[key][item][1], analysisDict[key][item][2][op]))
-                                        print("Found valid operator in list: ", self.opsToMutate[-1])
+                                        if self.verbose:
+                                            print("Found valid operator in list: ", self.opsToMutate[-1])
 
                             # Non comparison
                             # Check that the operator is in the valid complementary operators list and provided list of operators to use. Also make sure the line number matches a coverage line number
                             elif (analysisDict[key][item][2] in validComplementaryOpsList) and (analysisDict[key][item][2] in self.operators[key]) and (analysisDict[key][item][0] in analysisInfoNode.coverageLineNums):
                                 self.opsToMutate.append(analysisDict[key][item])
-                                print("Found valid operator: ", self.opsToMutate[-1])
+                                if self.verbose:
+                                    print("Found valid operator: ", self.opsToMutate[-1])
 
                         # Some mutations with RANDOM do not make sense/will probably not be allowed by the interpreter. Will need to fix those in the future.
                         case mutation_types.RANDOM:
@@ -277,13 +286,15 @@ class Mutation():
                                     if (analysisDict[key][item][2][op] in self.operators[key]) and (analysisDict[key][item][0] in analysisInfoNode.coverageLineNums):
                                         # Split up lists into single operators
                                         self.opsToMutate.append((analysisDict[key][item][0], analysisDict[key][item][1], analysisDict[key][item][2][op]))
-                                        print("Found valid operator in list: ", self.opsToMutate[-1])
+                                        if self.verbose:
+                                            print("Found valid operator in list: ", self.opsToMutate[-1])
 
                             # Non comparison
                             # Check that the operator is in the provided list of operators to use. Also make sure the line number matches a coverage line number
                             elif (analysisDict[key][item][2] in self.operators[key]) and (analysisDict[key][item][0] in analysisInfoNode.coverageLineNums):
                                 self.opsToMutate.append(analysisDict[key][item])
-                                print("Found valid operator: ", self.opsToMutate[-1])
+                                if self.verbose:
+                                    print("Found valid operator: ", self.opsToMutate[-1])
                         
                         case _:
                             raise Exception('Unknown mutation type!')
@@ -308,7 +319,6 @@ class Mutation():
         # Check the list to see if the node should be mutated
         def shouldMutate(self, lineNum, ColNum, Ops):
             nodeInfo = (lineNum, ColNum, type(Ops))
-            #print(nodeInfo)
             if self.numMutated >= self.numOps:
                 # Something went wrong if this happens...
                 return False
@@ -538,7 +548,7 @@ class Mutation():
                 # Each python file
                 for item in self.analysisInfoList:
                     mutatedTree = copy.deepcopy(item.tree)
-                    mutatedTree = self.__astNodeTransformerCallbacks_mutate(self.mutation_operators, mutation_type, numMutations, item).visit(mutatedTree)
+                    mutatedTree = self.__astNodeTransformerCallbacks_mutate(self.mutation_operators, mutation_type, numMutations, item, self.verbose).visit(mutatedTree)
                     mutatedTree = ast.fix_missing_locations(mutatedTree)
 
                     if printTreeAfterMutate:
@@ -556,6 +566,7 @@ class Mutation():
                 iterationXML = JUnitXml.fromfile(self.__getMutationDirName() + "/report-iteration-" + str(i) + ".xml")
                 for suite in iterationXML:
                     print("Suite " + str(suite.name) + " ran " + str(suite.tests) + " tests in " + str(suite.time) + " s")
+                    print(str(suite.name) + "results: [Errors: " + str(suite.errors) + ", Failures: " + str(suite.failures) + ", Skipped: " + str(suite.skipped) + "]")
                     if suite.errors > 0:
                         print(Fore.WHITE + Back.YELLOW + "[WARNING]" + Back.RESET + Style.BRIGHT + Fore.YELLOW + str(suite.errors) + " mutated test(s) threw an error! Mutation results may not be useful." + Style.RESET_ALL)
                     if suite.skipped > 0:
@@ -564,13 +575,15 @@ class Mutation():
                     for testcase in suite:
                         if len(testcase.result) > 1:
                             raise Exception('Unexpected number of results from xml file')
-                        result = testcase.result[0]
+
                         resultTypeStr = ""
 
                         if len(testcase.result) == 0:
                             resultTypeStr = "Passed"
-                            print(str(testcase.classname) + ": " + str(testcase.name) + " -> " + resultTypeStr)
+                            if self.verbose:
+                                print(str(testcase.classname) + ": " + str(testcase.name) + " -> " + resultTypeStr)
                         else:
+                            result = testcase.result[0]
                             if type(result) is junitparser.Failure:
                                 resultTypeStr = "failure"
                             elif type(result) is junitparser.Error:
@@ -580,7 +593,8 @@ class Mutation():
                             else:
                                 resultTypeStr = "UNKNOWN!"
 
-                            print(str(testcase.classname) + ": " + str(testcase.name) + " -> " + resultTypeStr + " (" + result.message.replace('\n', ' ') + ")")
+                            if self.verbose:
+                                print(str(testcase.classname) + ": " + str(testcase.name) + " -> " + resultTypeStr + " (" + result.message.replace('\n', ' ') + ")")
 
                 # Append results to report in mutation-unit-test/
                 
