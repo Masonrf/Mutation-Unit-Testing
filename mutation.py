@@ -34,7 +34,15 @@ class analysisInfo():
         printStr = "Filename: " + str(self.fileName) + "\n"
         printStr += "Tree: " + str(self.tree) + "\n"
         printStr += "Coverage Lines: " + str(self.coverageLineNums) + "\n"
-        printStr += "Operators: " + str(self.operatorDict) + "\n"
+        printStr += "Operators: \n"
+        for key, value in self.operatorDict.items():
+            printStr += "\t" + str(key) + ": "
+            if len(value) > 0:
+                printStr += "\n"
+                for listItem in value:
+                    printStr += "\t\t" + str(listItem) + "\n"
+            else:
+                printStr += "[]\n"
         return printStr
 
 
@@ -45,6 +53,7 @@ class Mutation():
         self.moduleNameToTest = moduleNameToTest
 
         self.logDir = Path(self.__getMutationDirName() + "/pytest-logs")
+        self.resultFilepath = self.__getMutationDirName() + "/mutation-results.txt"
 
         # List of analysisInfo() objects
         self.analysisInfoList = []
@@ -63,48 +72,64 @@ class Mutation():
                 p_init = subprocess.Popen("python3 -m pytest --junit-xml=\"" + self.__getMutationDirName() + "/initial-report.xml\" --cov-report term-missing --cov=" + self.moduleNameToTest + " " + self.unitTestFileName, stdout=covReportLog, stderr=covReportLog)
                 p_init.wait()
 
-            # Check the pytest xml to see if any tests failed on default
-            initialXML = JUnitXml.fromfile(self.__getMutationDirName() + "/initial-report.xml")
-            for suite in initialXML:
-                print("Suite " + str(suite.name) + " ran " + str(suite.tests) + " tests in " + str(suite.time) + " s")
-                if suite.errors == 0 and suite.failures == 0 and suite.skipped == 0:
-                    print("All tests passed.\n")
-                else:
-                    if suite.errors > 0:
-                        print(Fore.WHITE + Back.YELLOW + "[WARNING]" + Back.RESET + Style.BRIGHT + Fore.YELLOW + str(suite.errors) + " initial test(s) threw an error! Mutation results may not be useful." + Style.RESET_ALL)
-                    if suite.failures > 0:
-                        print(Fore.WHITE + Back.YELLOW + "[WARNING]" + Back.RESET + Style.BRIGHT + Fore.YELLOW + str(suite.failures) + " initial test(s) failed! Mutation results may not be useful." + Style.RESET_ALL)
-                    if suite.skipped > 0:
-                        print(Fore.WHITE + Back.YELLOW + "[WARNING]" + Back.RESET + Style.BRIGHT + Fore.YELLOW + str(suite.skipped) + " initial test(s) were skipped! Mutation results may not be useful." + Style.RESET_ALL)
+            with open(self.resultFilepath, "w+") as resultFile:
+                resultFile.write("----------------[Initialization Start]----------------\n")
+                # Check the pytest xml to see if any tests failed on default
+                initialXML = JUnitXml.fromfile(self.__getMutationDirName() + "/initial-report.xml")
+                for suite in initialXML:
+                    initResultStr = "Suite " + str(suite.name) + " ran " + str(suite.tests) + " tests in " + str(suite.time) + " s\n"
+                    resultFile.write(initResultStr)
+                    print(initResultStr)
+
+                    if suite.errors == 0 and suite.failures == 0 and suite.skipped == 0:
+                        print("All tests passed.\n")
+                    else:
+                        if suite.errors > 0:
+                            print(Fore.WHITE + Back.YELLOW + "[WARNING]" + Back.RESET + Style.BRIGHT + Fore.YELLOW + str(suite.errors) + " initial test(s) threw an error! Mutation results may not be useful." + Style.RESET_ALL)
+                        if suite.failures > 0:
+                            print(Fore.WHITE + Back.YELLOW + "[WARNING]" + Back.RESET + Style.BRIGHT + Fore.YELLOW + str(suite.failures) + " initial test(s) failed! Mutation results may not be useful." + Style.RESET_ALL)
+                        if suite.skipped > 0:
+                            print(Fore.WHITE + Back.YELLOW + "[WARNING]" + Back.RESET + Style.BRIGHT + Fore.YELLOW + str(suite.skipped) + " initial test(s) were skipped! Mutation results may not be useful." + Style.RESET_ALL)
 
 
-            # Parse coverage data
-            print("\nParsing coverage report data")
-            report = CoverageData()
-            report.read()
-            print("In data file: ", report.base_filename())
-            print("Measured files: ", report.measured_files())
-            for i in report.measured_files():
-                print("File: ", i)
-                print("Line numbers: ", report.lines(i))
+                # Parse coverage data
+                print("\nParsing coverage report data")
+                report = CoverageData()
+                report.read()
 
-            # Load source(s) from file(s) and parse into tree(s)
-            print()
-            for srcFileName in report.measured_files():
-                print("Loading and parsing source from " + str(srcFileName))
-                # It is possible to crash the Python interpreter with a sufficiently large/complex string due to stack depth limitations in Python’s AST compiler.
-                srcString = self.__loadSource(srcFileName)
-                tree = ast.parse(srcString)
+                resultFile.write("\nCoverage Report Info:\n")
+                resultFile.write("Coverage file: " + str(report.base_filename()) + "\n")
+                resultFile.write("Measured files:\n")
 
-                self.analysisInfoList.append(analysisInfo(srcFileName, tree, report.lines(srcFileName)))
+                print("In coverage file: ", report.base_filename())
+                print("Measured files: ", report.measured_files())
 
-                
-            # Analyze tree - Count various operator types in the relevant piece of code
-            for item in self.analysisInfoList:
-                print("\nAnalyzing tree at: ", item.fileName)
-                self.__astNodeVisitorCallbacks_analyze(item).visit(item.tree)
-                print("Types and number of operators: ", item)           
-            
+                for i in report.measured_files():
+                    resultFile.write("\tFile: " + str(i) + "\n")
+                    resultFile.write("\tLine numbers: " + str(report.lines(i)) + "\n")
+
+                    print("File: ", i)
+                    print("Line numbers: ", report.lines(i))
+
+                # Load source(s) from file(s) and parse into tree(s)
+                print()
+                for srcFileName in report.measured_files():
+                    print("Loading and parsing source from " + str(srcFileName))
+                    # It is possible to crash the Python interpreter with a sufficiently large/complex string due to stack depth limitations in Python’s AST compiler.
+                    srcString = self.__loadSource(srcFileName)
+                    tree = ast.parse(srcString)
+
+                    self.analysisInfoList.append(analysisInfo(srcFileName, tree, report.lines(srcFileName)))
+
+                resultFile.write("\nAnalysis of source trees:\n")
+                # Analyze tree - Count various operator types in the relevant piece of code
+                for item in self.analysisInfoList:
+                    self.__astNodeVisitorCallbacks_analyze(item).visit(item.tree)
+                    print("Types and number of operators: ", item)
+                    resultFile.write(str(item) + "\n")
+
+                resultFile.write("----------------[Initialization End]----------------\n")
+
         except Exception as ex:
             traceback.print_exc()
             raise
