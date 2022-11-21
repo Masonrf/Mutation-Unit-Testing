@@ -242,7 +242,7 @@ class Mutation():
 
     # Node transformer callback functions and info for mutating the AST
     class __astNodeTransformerCallbacks_mutate(ast.NodeTransformer, mutation_types):
-        def __init__(self, operators: dict, mutationType, numRequestedMutations, analysisInfoNode: analysisInfo, verbose=False):
+        def __init__(self, operators: dict, mutationType, numRequestedMutations, analysisInfoNode: analysisInfo, resultFile, verbose=False):
             validComplementaryOpsList = [ast.UAdd, ast.USub, ast.Add, ast.Sub, ast.Mult, ast.Div, ast.LShift, ast.RShift, ast.And, ast.Or, ast.Eq, ast.NotEq, ast.Lt, ast.LtE, ast.Gt, ast.GtE, ast.Is, ast.IsNot, ast.In, ast.NotIn]
             self.operators = operators
             self.mutationType = mutationType
@@ -300,7 +300,9 @@ class Mutation():
                             raise Exception('Unknown mutation type!')
 
             self.numOps = len(self.opsToMutate)
-            print("Total number of valid operators found: ", self.numOps, "\nNumber of operators that the user requested be mutated: ", numRequestedMutations)
+            validOpsStr = "Total number of valid operators found: " + str(self.numOps) + "\nNumber of operators that the user requested be mutated: " + str(numRequestedMutations) + "\n"
+            print(validOpsStr)
+            resultFile.write(validOpsStr)
             
             if numRequestedMutations > self.numOps:
                 numRequestedMutations = self.numOps
@@ -311,9 +313,12 @@ class Mutation():
                 self.opsToMutate.pop(random.randrange(len(self.opsToMutate)))
             
             print("Operators that will be mutated:")
+            resultFile.write("\nList of operators that will be mutated:\n")
             for i in self.opsToMutate:
+                resultFile.write("\t" + str(i))
                 print("\t", i)
             print()
+            resultFile.write("\n\n")
             
             self.numOps = len(self.opsToMutate)
 
@@ -547,61 +552,79 @@ class Mutation():
             copytree(self.__getFullModulesToTestPath(), str(backupPath))
 
             # Start mutation
-            for i in range(iterations):
-                print("\n----------------[Iteration " + str(i) + "]----------------")
-                # Each python file
-                for item in self.analysisInfoList:
-                    mutatedTree = copy.deepcopy(item.tree)
-                    mutatedTree = self.__astNodeTransformerCallbacks_mutate(self.mutation_operators, mutation_type, numMutations, item, self.verbose).visit(mutatedTree)
-                    mutatedTree = ast.fix_missing_locations(mutatedTree)
+            with open(self.resultFilepath, "a") as resultFile:
+                resultFile.write("\n----------------[Start Mutation]----------------\n")
+                for i in range(iterations):
+                    print("\n----------------[Iteration " + str(i) + "]----------------")
+                    resultFile.write("--> Iteration " + str(i) + ":\n")
+                    # Each python file
+                    for item in self.analysisInfoList:
+                        mutatedTree = copy.deepcopy(item.tree)
+                        mutatedTree = self.__astNodeTransformerCallbacks_mutate(self.mutation_operators, mutation_type, numMutations, item, resultFile, self.verbose).visit(mutatedTree)
+                        mutatedTree = ast.fix_missing_locations(mutatedTree)
 
-                    if printTreeAfterMutate:
-                        print(ast.unparse(mutatedTree))
-                    
-                    self.__exportTreeAsSource(mutatedTree, item.fileName)
+                        if printTreeAfterMutate:
+                            print(ast.unparse(mutatedTree))
+                        
+                        self.__exportTreeAsSource(mutatedTree, item.fileName)
 
-                print("\nRunning pytest on iteration " + str(i))
-                with open(str(self.logDir) + "/pytest-log-iteration-" + str(i) + ".txt", "w+") as iterationLog:
-                    p_mut = subprocess.Popen("python3 -m pytest --junit-xml=\"" + self.__getMutationDirName() + "/report-iteration-" + str(i) + ".xml\" " + self.unitTestFileName, stdout=iterationLog, stderr=iterationLog)
-                    p_mut.wait()
+                    print("\nRunning pytest on iteration " + str(i))
+                    with open(str(self.logDir) + "/pytest-log-iteration-" + str(i) + ".txt", "w+") as iterationLog:
+                        p_mut = subprocess.Popen("python3 -m pytest --junit-xml=\"" + self.__getMutationDirName() + "/report-iteration-" + str(i) + ".xml\" " + self.unitTestFileName, stdout=iterationLog, stderr=iterationLog)
+                        p_mut.wait()
 
-                # Get results from xml file
-                iterationXML = JUnitXml.fromfile(self.__getMutationDirName() + "/report-iteration-" + str(i) + ".xml")
-                for suite in iterationXML:
-                    print("Suite " + str(suite.name) + " ran " + str(suite.tests) + " tests in " + str(suite.time) + " s")
-                    print(str(suite.name) + " results: [Failures (killed mutants): " + str(suite.failures) + ", Errors: " + str(suite.errors) + ", Skipped: " + str(suite.skipped) + "]")
-                    if suite.errors > 0:
-                        print(Fore.WHITE + Back.YELLOW + "[WARNING]" + Back.RESET + Style.BRIGHT + Fore.YELLOW + str(suite.errors) + " mutated test(s) threw an error! Mutation results may not be useful." + Style.RESET_ALL)
-                    if suite.skipped > 0:
-                        print(Fore.WHITE + Back.YELLOW + "[WARNING]" + Back.RESET + Style.BRIGHT + Fore.YELLOW + str(suite.skipped) + " mutated test(s) were skipped! Mutation results may not be useful." + Style.RESET_ALL)
+                    # Get results from xml file
+                    iterationXML = JUnitXml.fromfile(self.__getMutationDirName() + "/report-iteration-" + str(i) + ".xml")
+                    for suite in iterationXML:
+                        resultStr = "Suite " + str(suite.name) + " ran " + str(suite.tests) + " tests in " + str(suite.time) + " s\n" + str(suite.name) + " results: [Failures (killed mutants): " + str(suite.failures) + ", Errors: " + str(suite.errors) + ", Skipped: " + str(suite.skipped) + "]"
+                        resultFile.write(resultStr + "\n")
+                        print(resultStr)
+                        if suite.errors > 0:
+                            print(Fore.WHITE + Back.YELLOW + "[WARNING]" + Back.RESET + Style.BRIGHT + Fore.YELLOW + str(suite.errors) + " mutated test(s) threw an error! Mutation results may not be useful." + Style.RESET_ALL)
+                            resultFile.write("[WARNING] " + str(suite.errors) + " mutated test(s) threw an error! Mutation results may not be useful\n")
+                        if suite.skipped > 0:
+                            print(Fore.WHITE + Back.YELLOW + "[WARNING]" + Back.RESET + Style.BRIGHT + Fore.YELLOW + str(suite.skipped) + " mutated test(s) were skipped! Mutation results may not be useful." + Style.RESET_ALL)
+                            resultFile.write("[WARNING] " + str(suite.skipped) + " mutated test(s) were skipped! Mutation results may not be useful\n")
 
-                    for testcase in suite:
-                        if len(testcase.result) > 1:
-                            raise Exception('Unexpected number of results from xml file')
+                        for testcase in suite:
+                            if len(testcase.result) > 1:
+                                raise Exception('Unexpected number of results from xml file')
 
-                        resultTypeStr = ""
+                            resultTypeStr = ""
+                            resultWriteStr = ""
 
-                        if len(testcase.result) == 0:
-                            resultTypeStr = Style.BRIGHT + Fore.MAGENTA + "Passed (test failed to kill mutant!)" + Style.RESET_ALL
-                            print(Fore.WHITE + Back.MAGENTA + Style.BRIGHT + "Failed to kill mutant on " + str(testcase.name) + "!" + Style.RESET_ALL)
-                            if self.verbose:
-                                print(str(testcase.classname) + ": " + str(testcase.name) + " -> " + resultTypeStr)
-                        else:
-                            result = testcase.result[0]
-                            if type(result) is junitparser.Failure:
-                                resultTypeStr = Style.BRIGHT + Fore.GREEN + "failure (test killed mutant!)" + Style.RESET_ALL
-                            elif type(result) is junitparser.Error:
-                                resultTypeStr = Style.BRIGHT + Fore.RED + "error" + Style.RESET_ALL
-                            elif type(result) is junitparser.Skipped:
-                                resultTypeStr = Style.BRIGHT + Fore.YELLOW + "skipped" + Style.RESET_ALL
+                            if len(testcase.result) == 0:
+                                resultTypeStr = Style.BRIGHT + Fore.MAGENTA + "Passed (test failed to kill mutant!)" + Style.RESET_ALL
+                                print(Fore.WHITE + Back.MAGENTA + Style.BRIGHT + "Failed to kill mutant on " + str(testcase.name) + "!" + Style.RESET_ALL)
+                                if self.verbose:
+                                    print(str(testcase.classname) + ": " + str(testcase.name) + " -> " + resultTypeStr)
+                                resultFile.write(str(testcase.classname) + ": " + str(testcase.name) + " -> Passed (test failed to kill mutant!)\n")
+
                             else:
-                                resultTypeStr = Style.BRIGHT + Fore.CYAN + "UNKNOWN!" + Style.RESET_ALL
+                                result = testcase.result[0]
+                                if type(result) is junitparser.Failure:
+                                    resultTypeStr = Style.BRIGHT + Fore.GREEN + "failure (test killed mutant!)" + Style.RESET_ALL
+                                    resultWriteStr = "failure (test killed mutant!)"
+                                elif type(result) is junitparser.Error:
+                                    resultTypeStr = Style.BRIGHT + Fore.RED + "error" + Style.RESET_ALL
+                                    resultWriteStr = "error"
+                                elif type(result) is junitparser.Skipped:
+                                    resultTypeStr = Style.BRIGHT + Fore.YELLOW + "skipped" + Style.RESET_ALL
+                                    resultWriteStr = "skipped"
+                                else:
+                                    resultTypeStr = Style.BRIGHT + Fore.CYAN + "UNKNOWN!" + Style.RESET_ALL
+                                    resultWriteStr = "UNKNOWN!"
 
-                            if self.verbose:
-                                print(str(testcase.classname) + ": " + str(testcase.name) + " -> " + resultTypeStr + " (" + result.message.replace('\n', ' ') + ")")
+                                if self.verbose:
+                                    print(str(testcase.classname) + ": " + str(testcase.name) + " -> " + resultTypeStr + " (" + result.message.replace('\n', ' ') + ")")
+                                
+                                resultFile.write(str(testcase.classname) + ": " + str(testcase.name) + " -> " + resultWriteStr + " (" + result.message.replace('\n', ' ') + ")\n")
 
-                # Append results to report in mutation-unit-test/
-            print("----------------[End i"+ str(i) +"]----------------")
+                    print("----------------[End i"+ str(i) +"]----------------")
+                    resultFile.write("\n\n")
+            
+                resultFile.write("----------------[End Mutation]----------------\n")
+
                 
             # Copy backup back to original location
             rmtree(self.__getFullModulesToTestPath())
