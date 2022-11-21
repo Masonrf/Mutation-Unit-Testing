@@ -55,13 +55,18 @@ class Mutation():
 
         self.logDir = Path(self.__getMutationDirName() + "/pytest-logs")
         self.resultFilepath = self.__getMutationDirName() + "/mutation-results.txt"
+        self.xmlDir = Path(self.__getMutationDirName() + "/xml")
 
         # List of analysisInfo() objects
         self.analysisInfoList = []
         try:
             if self.logDir.exists():
-                print("Overwriting old logs")
+                print("Removing old logs")
                 rmtree(str(self.logDir))
+            
+            if self.xmlDir.exists():
+                print("Removing old xml files")
+                rmtree(str(self.xmlDir))
 
             # (Re)make the mutation-unit-test/ folder
             self.logDir.mkdir(parents=True, exist_ok=True)
@@ -70,13 +75,13 @@ class Mutation():
             with open(str(self.logDir) + "/initial-pytest-log.txt", "w+") as covReportLog:
                 # Analyze tree - look for pieces of code the unit test actually covers
                 print("\nRunning a code coverage report on the given unit test file")
-                p_init = subprocess.Popen("python3 -m pytest --junit-xml=\"" + self.__getMutationDirName() + "/initial-report.xml\" --cov-report term-missing --cov=" + self.moduleNameToTest + " " + self.unitTestFileName, stdout=covReportLog, stderr=covReportLog)
+                p_init = subprocess.Popen("python3 -m pytest --junit-xml=\"" + str(self.xmlDir) + "/initial-report.xml\" --cov-report term-missing --cov=" + self.moduleNameToTest + " " + self.unitTestFileName, stdout=covReportLog, stderr=covReportLog)
                 p_init.wait()
 
             with open(self.resultFilepath, "w+") as resultFile:
                 resultFile.write("----------------[Initialization Start]----------------\n")
                 # Check the pytest xml to see if any tests failed on default
-                initialXML = JUnitXml.fromfile(self.__getMutationDirName() + "/initial-report.xml")
+                initialXML = JUnitXml.fromfile(str(self.xmlDir) + "/initial-report.xml")
                 for suite in initialXML:
                     initResultStr = "Suite " + str(suite.name) + " ran " + str(suite.tests) + " tests in " + str(suite.time) + " s\n"
                     resultFile.write(initResultStr)
@@ -570,11 +575,11 @@ class Mutation():
 
                     print("\nRunning pytest on iteration " + str(i))
                     with open(str(self.logDir) + "/pytest-log-iteration-" + str(i) + ".txt", "w+") as iterationLog:
-                        p_mut = subprocess.Popen("python3 -m pytest --junit-xml=\"" + self.__getMutationDirName() + "/report-iteration-" + str(i) + ".xml\" " + self.unitTestFileName, stdout=iterationLog, stderr=iterationLog)
+                        p_mut = subprocess.Popen("python3 -m pytest --junit-xml=\"" + str(self.xmlDir) + "/report-iteration-" + str(i) + ".xml\" " + self.unitTestFileName, stdout=iterationLog, stderr=iterationLog)
                         p_mut.wait()
 
                     # Get results from xml file
-                    iterationXML = JUnitXml.fromfile(self.__getMutationDirName() + "/report-iteration-" + str(i) + ".xml")
+                    iterationXML = JUnitXml.fromfile(str(self.xmlDir) + "/report-iteration-" + str(i) + ".xml")
                     for suite in iterationXML:
                         resultStr = "Suite " + str(suite.name) + " ran " + str(suite.tests) + " tests in " + str(suite.time) + " s\n" + str(suite.name) + " results: [Failures (killed mutants): " + str(suite.failures) + ", Errors: " + str(suite.errors) + ", Skipped: " + str(suite.skipped) + "]"
                         resultFile.write(resultStr + "\n")
@@ -630,7 +635,7 @@ class Mutation():
 
                 for i in range(iterations):
                     resultFile.write("Iteration " + str(i) + " results:\n")
-                    iterationXML = JUnitXml.fromfile(self.__getMutationDirName() + "/report-iteration-" + str(i) + ".xml")
+                    iterationXML = JUnitXml.fromfile(str(self.xmlDir) + "/report-iteration-" + str(i) + ".xml")
                     for suite in iterationXML:
                         resultFile.write("\t" + str(suite.name) + " total tests: " + str(suite.tests) + "\n")
                         resultFile.write("\tKilled mutants: " + str(suite.failures) + "\n")
