@@ -626,6 +626,22 @@ class Mutation():
                 resultFile.write("----------------[End Mutation]----------------\n")
 
                 
+                resultFile.write("\n----------------[Final Results]----------------\n")
+
+                for i in range(iterations):
+                    resultFile.write("Iteration " + str(i) + " results:\n")
+                    iterationXML = JUnitXml.fromfile(self.__getMutationDirName() + "/report-iteration-" + str(i) + ".xml")
+                    for suite in iterationXML:
+                        resultFile.write("\t" + str(suite.name) + " total tests: " + str(suite.tests) + "\n")
+                        resultFile.write("\tKilled mutants: " + str(suite.failures) + "\n")
+                        resultFile.write("\tSurvived mutants: " + str(suite.tests - suite.failures - suite.errors - suite.skipped) + "\n")
+                        resultFile.write("\tErrors: " + str(suite.errors) + "\n")
+                        resultFile.write("\tSkipped: " + str(suite.skipped) + "\n")
+                    resultFile.write("\n")
+
+                resultFile.write("----------------[End]----------------\n")
+
+                
             # Copy backup back to original location
             rmtree(self.__getFullModulesToTestPath())
             copytree(str(backupPath), self.__getFullModulesToTestPath())
