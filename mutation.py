@@ -128,6 +128,11 @@ class Mutation():
                     tree = ast.parse(srcString)
 
                     self.analysisInfoList.append(analysisInfo(srcFileName, tree, report.lines(srcFileName)))
+                
+                # Remove .coverage file
+                covPath = Path(".coverage")
+                if covPath.exists():
+                    covPath.unlink()
 
                 resultFile.write("\nAnalysis of source trees:\n")
                 # Analyze tree - Count various operator types in the relevant piece of code
