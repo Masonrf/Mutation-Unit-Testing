@@ -671,9 +671,3 @@ class Mutation():
             rmtree(self.__getFullModulesToTestPath())
             copytree(str(backupPath), self.__getFullModulesToTestPath())
             raise
-
-
-
-# make into package and require dependencies
-
-# append result of run to result file in mutation-unit-test folder
