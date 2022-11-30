@@ -545,7 +545,7 @@ class Mutation():
 
 
     # An abstraction to be able to call any type of mutation function from one function call
-    def mutate(self, mutation_type: mutation_types, iterations: int, numMutations: int, printTreeAfterMutate=False, removeBackup=True):
+    def mutate(self, mutation_type: mutation_types, iterations: int, numMutations: int, printSrcAfterMutate=False, removeBackup=True):
         try:
             if iterations < 1:
                 raise Exception('Number of iterations cannot be less than 1!')
@@ -573,7 +573,7 @@ class Mutation():
                         mutatedTree = self.__astNodeTransformerCallbacks_mutate(self.mutation_operators, mutation_type, numMutations, item, resultFile, self.verbose).visit(mutatedTree)
                         mutatedTree = ast.fix_missing_locations(mutatedTree)
 
-                        if printTreeAfterMutate:
+                        if printSrcAfterMutate:
                             print(ast.unparse(mutatedTree))
                         
                         self.__exportTreeAsSource(mutatedTree, item.fileName)

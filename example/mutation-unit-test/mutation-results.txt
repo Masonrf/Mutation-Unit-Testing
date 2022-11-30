@@ -1,0 +1,98 @@
+----------------[Initialization Start]----------------
+Suite pytest ran 2 tests in 0.2 s
+
+Coverage Report Info:
+Coverage file: C:\Users\mrf\Documents\`Classes\`This Semester\CS 4450 - Principles of Programming\HLBC\Mutation-Unit-Testing\example\.coverage
+Measured files:
+	File: C:\Users\mrf\Documents\`Classes\`This Semester\CS 4450 - Principles of Programming\HLBC\Mutation-Unit-Testing\example\modulesToTest\hello3.py
+	Line numbers: [1, 2, 3, 4]
+	File: C:\Users\mrf\Documents\`Classes\`This Semester\CS 4450 - Principles of Programming\HLBC\Mutation-Unit-Testing\example\modulesToTest\hello4.py
+	Line numbers: [1, 2, 3, 4, 5, 7, 8]
+
+Analysis of source trees:
+Filename: C:\Users\mrf\Documents\`Classes\`This Semester\CS 4450 - Principles of Programming\HLBC\Mutation-Unit-Testing\example\modulesToTest\hello3.py
+Tree: <ast.Module object at 0x0000013B013F70D0>
+Coverage Lines: [1, 2, 3, 4]
+Operators: 
+	unaryOps: 
+		(3, 12, <class 'ast.USub'>)
+	binOps: 
+		(2, 8, <class 'ast.Add'>)
+		(3, 8, <class 'ast.Mult'>)
+	boolOps: []
+	cmpOps: []
+
+Filename: C:\Users\mrf\Documents\`Classes\`This Semester\CS 4450 - Principles of Programming\HLBC\Mutation-Unit-Testing\example\modulesToTest\hello4.py
+Tree: <ast.Module object at 0x0000013B013F7B50>
+Coverage Lines: [1, 2, 3, 4, 5, 7, 8]
+Operators: 
+	unaryOps: []
+	binOps: 
+		(2, 8, <class 'ast.Div'>)
+		(3, 8, <class 'ast.Mult'>)
+		(4, 8, <class 'ast.Sub'>)
+		(5, 8, <class 'ast.Add'>)
+		(5, 12, <class 'ast.Mult'>)
+	boolOps: []
+	cmpOps: 
+		(7, 7, [<class 'ast.Gt'>])
+
+----------------[Initialization End]----------------
+
+----------------[Start Mutation]----------------
+--> Iteration 0:
+Total number of valid operators found: 3
+Number of operators that the user requested be mutated: 3
+
+List of operators that will be mutated:
+	(3, 12, <class 'ast.USub'>)	(2, 8, <class 'ast.Add'>)	(3, 8, <class 'ast.Mult'>)
+
+Total number of valid operators found: 6
+Number of operators that the user requested be mutated: 3
+
+List of operators that will be mutated:
+	(2, 8, <class 'ast.Div'>)	(3, 8, <class 'ast.Mult'>)	(4, 8, <class 'ast.Sub'>)
+
+Suite pytest ran 2 tests in 0.257 s
+pytest results: [Failures (killed mutants): 2, Errors: 0, Skipped: 0]
+testDir.test_hello: test_foo -> failure (test killed mutant!) (assert 2.0 == -8  +  where 2.0 = foo(5))
+testDir.test_hello: test_bar -> failure (test killed mutant!) (assert 40.0 == 20  +  where 40.0 = bar(10))
+
+
+--> Iteration 1:
+Total number of valid operators found: 3
+Number of operators that the user requested be mutated: 3
+
+List of operators that will be mutated:
+	(3, 12, <class 'ast.USub'>)	(2, 8, <class 'ast.Add'>)	(3, 8, <class 'ast.Mult'>)
+
+Total number of valid operators found: 6
+Number of operators that the user requested be mutated: 3
+
+List of operators that will be mutated:
+	(3, 8, <class 'ast.Mult'>)	(5, 8, <class 'ast.Add'>)	(5, 12, <class 'ast.Mult'>)
+
+Suite pytest ran 2 tests in 0.18 s
+pytest results: [Failures (killed mutants): 2, Errors: 0, Skipped: 0]
+testDir.test_hello: test_foo -> failure (test killed mutant!) (assert 2.0 == -8  +  where 2.0 = foo(5))
+testDir.test_hello: test_bar -> failure (test killed mutant!) (assert 10 == 20  +  where 10 = bar(10))
+
+
+----------------[End Mutation]----------------
+
+----------------[Final Results]----------------
+Iteration 0 results:
+	pytest total tests: 2
+	Killed mutants: 2
+	Survived mutants: 0
+	Errors: 0
+	Skipped: 0
+
+Iteration 1 results:
+	pytest total tests: 2
+	Killed mutants: 2
+	Survived mutants: 0
+	Errors: 0
+	Skipped: 0
+
+----------------[End]----------------

@@ -1,0 +1,9 @@
+<?xml version="1.0" encoding="utf-8"?><testsuites><testsuite name="pytest" errors="0" failures="2" skipped="0" tests="2" time="0.257" timestamp="2022-11-30T14:40:38.864454" hostname="DESKTOP-I6UVNH8"><testcase classname="testDir.test_hello" name="test_foo" time="0.002"><failure message="assert 2.0 == -8&#10; +  where 2.0 = foo(5)">&gt;   ???
+E   assert 2.0 == -8
+E    +  where 2.0 = foo(5)
+
+C:\Users\mrf\Documents\`Classes\`This Semester\CS 4450 - Principles of Programming\HLBC\Mutation-Unit-Testing\tests\testDir\test_hello.py:8: AssertionError</failure></testcase><testcase classname="testDir.test_hello" name="test_bar" time="0.001"><failure message="assert 40.0 == 20&#10; +  where 40.0 = bar(10)">&gt;   ???
+E   assert 40.0 == 20
+E    +  where 40.0 = bar(10)
+
+C:\Users\mrf\Documents\`Classes\`This Semester\CS 4450 - Principles of Programming\HLBC\Mutation-Unit-Testing\tests\testDir\test_hello.py:11: AssertionError</failure></testcase></testsuite></testsuites>

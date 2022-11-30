@@ -1,0 +1,28 @@
+============================= test session starts =============================
+platform win32 -- Python 3.10.8, pytest-7.1.3, pluggy-1.0.0
+rootdir: C:\Users\mrf\Documents\`Classes\`This Semester\CS 4450 - Principles of Programming\HLBC\Mutation-Unit-Testing\example
+plugins: cov-4.0.0
+collected 2 items
+
+testDir\test_hello.py FF                                                 [100%]
+
+================================== FAILURES ===================================
+__________________________________ test_foo ___________________________________
+
+>   ???
+E   assert 2.0 == -8
+E    +  where 2.0 = foo(5)
+
+C:\Users\mrf\Documents\`Classes\`This Semester\CS 4450 - Principles of Programming\HLBC\Mutation-Unit-Testing\tests\testDir\test_hello.py:8: AssertionError
+__________________________________ test_bar ___________________________________
+
+>   ???
+E   assert 10 == 20
+E    +  where 10 = bar(10)
+
+C:\Users\mrf\Documents\`Classes\`This Semester\CS 4450 - Principles of Programming\HLBC\Mutation-Unit-Testing\tests\testDir\test_hello.py:11: AssertionError
+- generated xml file: C:\Users\mrf\Documents\`Classes\`This Semester\CS 4450 - Principles of Programming\HLBC\Mutation-Unit-Testing\example\mutation-unit-test\xml\report-iteration-1.xml -
+=========================== short test summary info ===========================
+FAILED testDir/test_hello.py::test_foo - assert 2.0 == -8
+FAILED testDir/test_hello.py::test_bar - assert 10 == 20
+============================== 2 failed in 0.21s ==============================
