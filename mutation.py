@@ -11,6 +11,8 @@ from pathlib import Path
 from shutil import rmtree, copytree
 import subprocess
 from junitparser import *
+import fnmatch
+from os.path import isdir, join
 
 # Types of mutations to be called with mutation.mutation_types.TYPE
 class mutation_types():
@@ -74,8 +76,9 @@ class Mutation():
             print("\nRunning initial pytest tests")
             with open(str(self.logDir) + "/initial-pytest-log.txt", "w+") as covReportLog:
                 # Analyze tree - look for pieces of code the unit test actually covers
-                print("\nRunning a code coverage report on the given unit test file")
-                p_init = subprocess.Popen("python3 -m pytest --junit-xml=\"" + str(self.xmlDir) + "/initial-report.xml\" --cov-report term-missing --cov=" + self.moduleNameToTest + " " + self.unitTestFileName, stdout=covReportLog, stderr=covReportLog)
+                print("\nRunning a code coverage report on the given unit test file\n(This may take awhile)")
+                #p_init = subprocess.Popen("python3 -m pytest --junit-xml=\"" + str(self.xmlDir) + "/initial-report.xml\" --cov-report term-missing --cov=" + self.moduleNameToTest + " " + self.unitTestFileName, stdout=covReportLog, stderr=covReportLog)
+                p_init = subprocess.Popen("python3 -m pytest --junit-xml=\"" + str(self.xmlDir) + "/initial-report.xml\" --cov-report term-missing --cov=" + self.moduleNameToTest + " " + self.unitTestFileName)
                 p_init.wait()
 
             with open(self.resultFilepath, "w+") as resultFile:
@@ -219,7 +222,8 @@ class Mutation():
     # Converts the parse tree back into code
     def __exportTreeAsSource(self, tree, destinationFilename, printSrc=False):
         try:
-            print("Converting from tree to source")
+            if self.verbose:
+                print("Exporting tree ", Path(destinationFilename).name)
             # Some warnings about the unparse function from the library documentation:
             # Warning The produced code string will not necessarily be equal to the original code that generated the ast.AST object.
             # Trying to unparse a highly complex expression would result with RecursionError.
@@ -264,7 +268,9 @@ class Mutation():
             self.opsToMutate = []
             
             analysisDict = analysisInfoNode.operatorDict
-
+            moduleName = Path(analysisInfoNode.fileName).name
+            print("Mutating ", moduleName)
+            resultFile.write("Mutating " + str(moduleName) + "\n")
             for key in analysisDict:
                 for item in range(len(analysisDict[key])):
                     match self.mutationType:
@@ -558,8 +564,37 @@ class Mutation():
                 print("Overwriting old backup")
                 rmtree(str(backupPath))
             
+            # From: https://stackoverflow.com/a/35161407
+            def include_patterns(*patterns):
+                """ Function that can be used as shutil.copytree() ignore parameter that
+                determines which files *not* to ignore, the inverse of "normal" usage.
+
+                This is a factory function that creates a function which can be used as a
+                callable for copytree()'s ignore argument, *not* ignoring files that match
+                any of the glob-style patterns provided.
+
+                ‛patterns’ are a sequence of pattern strings used to identify the files to
+                include when copying the directory tree.
+
+                Example usage:
+
+                    copytree(src_directory, dst_directory,
+                            ignore=include_patterns('*.sldasm', '*.sldprt'))
+                """
+                def _ignore_patterns(path, all_names):
+                    # Determine names which match one or more patterns (that shouldn't be
+                    # ignored).
+                    keep = (name for pattern in patterns
+                                    for name in fnmatch.filter(all_names, pattern))
+                    # Ignore file names which *didn't* match any of the patterns given that
+                    # aren't directory names.
+                    dir_names = (name for name in all_names if isdir(join(path, name)))
+                    return set(all_names) - set(keep) - set(dir_names)
+
+                return _ignore_patterns
+            
             # Backup files that are going to be overwritten on mutate
-            copytree(self.__getFullModulesToTestPath(), str(backupPath))
+            copytree(self.__getFullModulesToTestPath(), str(backupPath), ignore=include_patterns('*.py'))
 
             # Start mutation
             with open(self.resultFilepath, "a") as resultFile:
@@ -578,9 +613,10 @@ class Mutation():
                         
                         self.__exportTreeAsSource(mutatedTree, item.fileName)
 
-                    print("\nRunning pytest on iteration " + str(i))
+                    print("\nRunning pytest on iteration " + str(i) + "\n(This may take awhile)")
                     with open(str(self.logDir) + "/pytest-log-iteration-" + str(i) + ".txt", "w+") as iterationLog:
-                        p_mut = subprocess.Popen("python3 -m pytest --junit-xml=\"" + str(self.xmlDir) + "/report-iteration-" + str(i) + ".xml\" " + self.unitTestFileName, stdout=iterationLog, stderr=iterationLog)
+                        #p_mut = subprocess.Popen("python3 -m pytest --junit-xml=\"" + str(self.xmlDir) + "/report-iteration-" + str(i) + ".xml\" " + self.unitTestFileName, stdout=iterationLog, stderr=iterationLog)
+                        p_mut = subprocess.Popen("python3 -m pytest --junit-xml=\"" + str(self.xmlDir) + "/report-iteration-" + str(i) + ".xml\" " + self.unitTestFileName)
                         p_mut.wait()
 
                     # Get results from xml file
